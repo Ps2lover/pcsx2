@@ -362,6 +362,8 @@ public:
 	Threading::Mutex m_lock_Stack;
 #endif
 
+	u64 m_affinity = 0;
+
 public:
 	SysMtgsThread();
 	virtual ~SysMtgsThread();

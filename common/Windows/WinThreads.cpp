@@ -88,7 +88,7 @@ void Threading::pxThread::_platform_specific_OnStartInThread()
 	// however we own our process threads, so shouldn't matter in any case...
 
 	m_native_id = (uptr)GetCurrentThreadId();
-	m_native_handle = (uptr)OpenThread(THREAD_QUERY_INFORMATION, false, (DWORD)m_native_id);
+	m_native_handle = (uptr)OpenThread(THREAD_QUERY_INFORMATION | THREAD_SET_LIMITED_INFORMATION, false, (DWORD)m_native_id);
 
 	pxAssertDev(m_native_handle, wxNullChar);
 }
@@ -134,6 +134,22 @@ void Threading::SetNameOfCurrentThread(const char* name)
 	{
 	}
 #endif
+}
+
+void Threading::pxThread::SetAffinity(u64 processor_mask)
+{
+	if (processor_mask == 0)
+		processor_mask = ~processor_mask;
+
+	SetThreadAffinityMask((HANDLE)m_native_handle, (DWORD_PTR)processor_mask);
+}
+
+void Threading::SetAffinityForCurrentThread(u64 processor_mask)
+{
+	if (processor_mask == 0)
+		processor_mask = ~processor_mask;
+
+	SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR)processor_mask);
 }
 
 #endif

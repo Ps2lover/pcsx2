@@ -126,4 +126,13 @@ void Threading::SetNameOfCurrentThread(const char* name)
 	pthread_setname_np(name);
 }
 
+void Threading::pxThread::SetAffinity(u64 processor_mask)
+{
+}
+
+void Threading::SetAffinityForCurrentThread(u64 processor_mask)
+{
+}
+
+
 #endif

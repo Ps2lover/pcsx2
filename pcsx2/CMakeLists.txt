@@ -1608,6 +1608,7 @@ target_link_libraries(PCSX2_FLAGS INTERFACE
 	chdr-static
 	zip
 	bc7enc
+	cpuinfo
 	wxWidgets::all
 	ZLIB::ZLIB
 	PkgConfig::SOUNDTOUCH

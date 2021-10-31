@@ -49,6 +49,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\libzip;$(SolutionDir)3rdparty\libzip\libzip\lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\d3d12memalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\bc7enc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\cpuinfo\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling>Async</ExceptionHandling>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PrecompiledHeader.h</PrecompiledHeaderFile>
@@ -803,6 +804,9 @@
     </ProjectReference>
     <ProjectReference Include="..\3rdparty\bc7enc\bc7enc.vcxproj">
       <Project>{2b8f2943-0c79-47fd-9e23-652a5e7368b4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\3rdparty\cpuinfo\cpuinfo.vcxproj">
+      <Project>{7e183337-a7e9-460c-9d3d-568bc9f9bcc1}</Project>
     </ProjectReference>
     <ProjectReference Include="..\3rdparty\sdl2\SDL.vcxproj">
       <Project>{812b4434-fd6b-4cb2-8865-5fd8eb34b046}</Project>
