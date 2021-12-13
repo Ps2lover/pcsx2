@@ -467,7 +467,7 @@ WX_STRCMP_FUNC(wxStricmp, wxCRT_StricmpA, wxCRT_StricmpW, wxStricmp_String)
 // this fails to compile with VC6, so don't do it for VC. It also causes
 // problems with GCC visibility in newer GCC versions.
 // PCSX2: MSVC in conformance mode also requires declaration before use.
-#if (wxCHECK_GCC_VERSION(3,5) && !wxCHECK_GCC_VERSION(4,7)) || defined(__clang__) || defined(__VISUALC__)
+#if defined(__GNUC__) || defined(__clang__) || defined(__VISUALC__)
     #define wxNEEDS_DECL_BEFORE_TEMPLATE
 #endif
 
