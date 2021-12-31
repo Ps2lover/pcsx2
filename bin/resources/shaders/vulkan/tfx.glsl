@@ -1206,6 +1206,15 @@ void main()
 	o_col1 = vec4(alpha_blend);
 #endif
 
+#if PS_NO_ABLEND
+	// write alpha blend factor into col0
+	o_col0.a = alpha_blend;
+#endif
+#if PS_ONLY_ALPHA
+	// rgb isn't used
+	o_col0.rgb = vec3(0.0f);
+#endif
+
 #if PS_ZCLAMP
 	gl_FragDepth = min(gl_FragCoord.z, MaxDepthPS);
 #endif

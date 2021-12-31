@@ -147,9 +147,9 @@ void GSDevice11::SetupGS(GSSelector sel)
 	GSSetShader(gs.get(), m_vs_cb.get());
 }
 
-void GSDevice11::SetupPS(PSSelector sel, const GSHWDrawConfig::PSConstantBuffer* cb, PSSamplerSelector ssel)
+void GSDevice11::SetupPS(const PSSelector& sel, const GSHWDrawConfig::PSConstantBuffer* cb, PSSamplerSelector ssel)
 {
-	auto i = std::as_const(m_ps).find(sel.key);
+	auto i = std::as_const(m_ps).find(sel);
 
 	if (i == m_ps.end())
 	{
@@ -197,7 +197,7 @@ void GSDevice11::SetupPS(PSSelector sel, const GSHWDrawConfig::PSConstantBuffer*
 		sm.AddMacro("PS_TEX_IS_FB", sel.tex_is_fb);
 
 		wil::com_ptr_nothrow<ID3D11PixelShader> ps = m_shader_cache.GetPixelShader(m_dev.get(), m_tfx_source, sm.GetPtr(), "ps_main");
-		i = m_ps.try_emplace(sel.key, std::move(ps)).first;
+		i = m_ps.try_emplace(sel, std::move(ps)).first;
 	}
 
 	if (cb && m_ps_cb_cache.Update(*cb))
@@ -335,7 +335,7 @@ void GSDevice11::SetupOM(OMDepthStencilSelector dssel, OMBlendSelector bsel, u8 
 
 		if (bsel.abe)
 		{
-			const HWBlend blend = GetBlend(bsel.blend_index);
+			const HWBlend blend = GetBlend(bsel.blend_index, false);
 			bd.RenderTarget[0].BlendEnable = TRUE;
 			bd.RenderTarget[0].BlendOp = (D3D11_BLEND_OP)blend.op;
 			bd.RenderTarget[0].SrcBlend = (D3D11_BLEND)blend.src;
