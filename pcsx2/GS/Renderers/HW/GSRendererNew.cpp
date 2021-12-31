@@ -521,7 +521,7 @@ void GSRendererNew::EmulateChannelShuffle(const GSTextureCache::Source* tex)
 	}
 }
 
-void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER)
+void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER, bool& blending_alpha_pass)
 {
 	// AA1: Don't enable blending on AA1, not yet implemented on hardware mode,
 	// it requires coverage sample so it's safer to turn it off instead.
@@ -588,19 +588,9 @@ void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER)
 		&& (m_env.COLCLAMP.CLAMP)                                        // Let's add a colclamp check too, hw blend will clamp to 0-1.
 		&& !(m_conf.require_one_barrier || m_conf.require_full_barrier); // Also don't run if there are barriers present.
 
-	bool sw_blending = false;
-	if (!features.dual_source_blend)
-	{
-		const HWBlend unconverted_blend = g_gs_device->GetUnconvertedBlend(blend_index);
-		if (GSDevice::IsDualSourceBlendFactor(unconverted_blend.dst) ||
-			GSDevice::IsDualSourceBlendFactor(unconverted_blend.src))
-		{
-			sw_blending = true;
-		}
-	}
-
 	// Warning no break on purpose
 	// Note: the [[fallthrough]] attribute tell compilers not to complain about not having breaks.
+	bool sw_blending = false;
 	if (features.texture_barrier)
 	{
 		// Condition 1: Require full sw blend for full barrier.
@@ -696,6 +686,38 @@ void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER)
 				[[fallthrough]];
 			case AccBlendLevel::Minimum:
 				break;
+		}
+	}
+
+	bool replace_dual_src = false;
+	if (!features.dual_source_blend)
+	{
+		const HWBlend unconverted_blend = g_gs_device->GetUnconvertedBlend(blend_index);
+		if (GSDevice::IsDualSourceBlendFactor(unconverted_blend.dst) ||
+			GSDevice::IsDualSourceBlendFactor(unconverted_blend.src))
+		{
+			// if we don't have an alpha channel, we don't need a second pass, just output the alpha blend
+			// in the single colour's alpha chnanel, and blend with it
+			if (!m_conf.colormask.wa)
+			{
+				GL_INS("Outputting alpha blend in col0 because of no alpha write");
+				m_conf.ps.no_ablend = true;
+				replace_dual_src = true;
+			}
+			else if (features.framebuffer_fetch || m_conf.require_one_barrier || m_conf.require_full_barrier)
+			{
+				// prefer single pass sw blend (if barrier) or framebuffer fetch over dual pass alpha when supported
+				sw_blending = true;
+				color_dest_blend = false;
+				accumulation_blend &= !features.framebuffer_fetch;
+				blend_mix = false;
+			}
+			else
+			{
+				// split the draw into two
+				blending_alpha_pass = true;
+				replace_dual_src = true;
+			}
 		}
 	}
 
@@ -822,7 +844,7 @@ void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER)
 		if (accumulation_blend)
 		{
 			// Keep HW blending to do the addition/subtraction
-			m_conf.blend = {blend_index, 0, false, true, false};
+			m_conf.blend = {blend_index, 0, false, true, false, replace_dual_src};
 			if (m_conf.ps.blend_a == 2)
 			{
 				// The blend unit does a reverse subtraction so it means
@@ -839,7 +861,7 @@ void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER)
 		}
 		else if (blend_mix)
 		{
-			m_conf.blend = {blend_index, ALPHA.FIX, m_conf.ps.blend_c == 2, false, true};
+			m_conf.blend = {blend_index, ALPHA.FIX, m_conf.ps.blend_c == 2, false, true, replace_dual_src};
 			m_conf.ps.blend_mix = 1;
 
 			if (blend_mix1)
@@ -873,6 +895,8 @@ void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER)
 		{
 			// Disable HW blending
 			m_conf.blend = {};
+			replace_dual_src = false;
+			blending_alpha_pass = false;
 
 			const bool blend_non_recursive_one_barrier = blend_non_recursive && blend_ad_alpha_masked;
 			if (blend_non_recursive_one_barrier)
@@ -935,11 +959,11 @@ void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER)
 		{
 			// 24 bits doesn't have an alpha channel so use 1.0f fix factor as equivalent
 			const u8 hacked_blend_index = blend_index + 3; // +3 <=> +1 on C
-			m_conf.blend = {hacked_blend_index, 128, true, false, false};
+			m_conf.blend = {hacked_blend_index, 128, true, false, false, replace_dual_src};
 		}
 		else
 		{
-			m_conf.blend = {blend_index, ALPHA.FIX, ALPHA.C == 2, false, false};
+			m_conf.blend = {blend_index, ALPHA.FIX, ALPHA.C == 2, false, false, replace_dual_src};
 		}
 	}
 
@@ -1429,9 +1453,10 @@ void GSRendererNew::DrawPrims(GSTexture* rt, GSTexture* ds, GSTextureCache::Sour
 
 	// Blend
 
+	bool blending_alpha_pass = false;
 	if (!IsOpaque() && rt)
 	{
-		EmulateBlending(DATE_PRIMID, DATE_BARRIER);
+		EmulateBlending(DATE_PRIMID, DATE_BARRIER, blending_alpha_pass);
 	}
 	else
 	{
@@ -1722,6 +1747,46 @@ void GSRendererNew::DrawPrims(GSTexture* rt, GSTexture* ds, GSTextureCache::Sour
 		memcpy(&m_conf.depth,     &m_conf.alpha_second_pass.depth,     sizeof(m_conf.depth));
 		m_conf.cb_ps.FogColor_AREF.a = m_conf.alpha_second_pass.ps_aref;
 		m_conf.alpha_second_pass.enable = false;
+	}
+
+	if (blending_alpha_pass)
+	{
+		// ensure alpha blend output is disabled on both passes
+		m_conf.ps.no_ablend = true;
+
+		// if we're doing RGBA then Z alpha testing, we can't combine Z and A, and we need a third pass :(
+		if (ate_RGBA_then_Z)
+		{
+			// move second pass to third pass, since we want to write A first
+			std::memcpy(&m_conf.alpha_third_pass, &m_conf.alpha_second_pass, sizeof(m_conf.alpha_third_pass));
+			m_conf.alpha_third_pass.ps.no_ablend = true;
+			m_conf.alpha_second_pass.enable = false;
+		}
+
+		if (!m_conf.alpha_second_pass.enable)
+		{
+			m_conf.alpha_second_pass.enable = true;
+			memcpy(&m_conf.alpha_second_pass.ps, &m_conf.ps, sizeof(m_conf.ps));
+			memcpy(&m_conf.alpha_second_pass.colormask, &m_conf.colormask, sizeof(m_conf.colormask));
+			memcpy(&m_conf.alpha_second_pass.depth, &m_conf.depth, sizeof(m_conf.depth));
+
+			// disable alpha writes on first pass
+			m_conf.colormask.wa = false;
+		}
+
+		// only need to compute the alpha component (allow the shader to optimize better)
+		m_conf.alpha_second_pass.ps.no_ablend = false;
+		m_conf.alpha_second_pass.ps.only_alpha = true;
+		m_conf.alpha_second_pass.colormask.wr = m_conf.alpha_second_pass.colormask.wg = m_conf.alpha_second_pass.colormask.wb = false;
+		m_conf.alpha_second_pass.colormask.wa = true;
+
+		// if depth writes are on, we can optimize to an EQUAL test, otherwise we leave the tests alone
+		// since the alpha channel isn't blended, the last fragment wins and this'll be okay
+		if (m_conf.alpha_second_pass.depth.zwe)
+		{
+			m_conf.alpha_second_pass.depth.zwe = false;
+			m_conf.alpha_second_pass.depth.ztst = ZTST_GEQUAL;
+		}
 	}
 
 	if (m_conf.require_full_barrier && m_prim_overlap == PRIM_OVERLAP_NO)

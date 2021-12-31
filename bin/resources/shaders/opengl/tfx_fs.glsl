@@ -947,6 +947,15 @@ void ps_main()
     SV_Target1 = vec4(alpha_blend);
 #endif
 
+#if PS_NO_ABLEND
+    // write alpha blend factor into col0
+    SV_Target0.a = alpha_blend;
+#endif
+#if PS_ONLY_ALPHA
+    // rgb isn't used
+    SV_Target0.rgb = vec3(0.0f);
+#endif
+
 #if PS_ZCLAMP
 	gl_FragDepth = min(gl_FragCoord.z, MaxDepthPS);
 #endif 
