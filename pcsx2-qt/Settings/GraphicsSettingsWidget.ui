@@ -97,7 +97,7 @@
            <string>Auto Standard (4:3/3:2 Progressive)</string>
           </property>
          </item>
-		 <item>
+         <item>
           <property name="text">
            <string>Standard (4:3)</string>
           </property>
@@ -123,7 +123,7 @@
            <string>Off (Default)</string>
           </property>
          </item>
-		 <item>
+         <item>
           <property name="text">
            <string>Auto Standard (4:3/3:2 Progressive)</string>
           </property>
@@ -1173,6 +1173,20 @@
              <widget class="QCheckBox" name="disableFramebufferFetch">
               <property name="text">
                <string>Disable Framebuffer Fetch</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QCheckBox" name="skipPresentingDuplicateFrames">
+              <property name="text">
+               <string>Skip Presenting Duplicate Frames</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QCheckBox" name="disableHardwareReadbacks">
+              <property name="text">
+               <string>Disable Hardware Readbacks</string>
               </property>
              </widget>
             </item>
