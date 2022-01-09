@@ -297,6 +297,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	DisableShaderCache = false;
 	DisableFramebufferFetch = false;
 	ThreadedPresentation = false;
+	SkipDuplicateFrames = false;
 	OsdShowMessages = true;
 	OsdShowSpeed = false;
 	OsdShowFPS = false;
@@ -506,6 +507,7 @@ void Pcsx2Config::GSOptions::ReloadIniSettings()
 	GSSettingBool(DisableDualSourceBlend);
 	GSSettingBool(DisableFramebufferFetch);
 	GSSettingBool(ThreadedPresentation);
+	GSSettingBool(SkipDuplicateFrames);
 	GSSettingBool(OsdShowMessages);
 	GSSettingBool(OsdShowSpeed);
 	GSSettingBool(OsdShowFPS);
