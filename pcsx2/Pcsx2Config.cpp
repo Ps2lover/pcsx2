@@ -283,6 +283,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	UseBlitSwapChain = false;
 	DisableShaderCache = false;
 	ThreadedPresentation = false;
+	SkipDuplicateFrames = false;
 	OsdShowMessages = true;
 	OsdShowSpeed = false;
 	OsdShowFPS = false;
@@ -472,6 +473,7 @@ void Pcsx2Config::GSOptions::ReloadIniSettings()
 	GSSettingBool(UseBlitSwapChain);
 	GSSettingBoolEx(DisableShaderCache, "disable_shader_cache");
 	GSSettingBool(ThreadedPresentation);
+	GSSettingBool(SkipDuplicateFrames);
 	GSSettingBool(OsdShowMessages);
 	GSSettingBool(OsdShowSpeed);
 	GSSettingBool(OsdShowFPS);

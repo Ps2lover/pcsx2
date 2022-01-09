@@ -34,6 +34,7 @@ class GSRenderer : public GSState
 protected:
 	bool m_texture_shuffle;
 	GSVector2i m_real_size;
+	u32 m_skipped_duplicate_frames;
 
 	virtual GSTexture* GetOutput(int i, int& y_offset) = 0;
 	virtual GSTexture* GetFeedbackOutput() { return nullptr; }

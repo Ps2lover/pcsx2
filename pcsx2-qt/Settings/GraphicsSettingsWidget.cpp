@@ -125,6 +125,7 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(QWidget* parent, SettingsDialog* 
   //////////////////////////////////////////////////////////////////////////
   SettingWidgetBinder::BindWidgetToBoolSetting(m_ui.useBlitSwapChain, "EmuCore/GS", "UseBlitSwapChain", false);
   SettingWidgetBinder::BindWidgetToBoolSetting(m_ui.useDebugDevice, "EmuCore/GS", "UseDebugDevice", false);
+  SettingWidgetBinder::BindWidgetToBoolSetting(m_ui.skipPresentingDuplicateFrames, "EmuCore/GS", "SkipDuplicateFrames", false);
 
   //////////////////////////////////////////////////////////////////////////
   // SW Settings
