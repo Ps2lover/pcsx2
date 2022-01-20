@@ -90,6 +90,7 @@ void GSSwitchRenderer(GSRendererType new_renderer);
 void GSResetAPIState();
 void GSRestoreAPIState();
 bool GSSaveSnapshotToMemory(u32 width, u32 height, std::vector<u32>* pixels);
+void GSRenderSaveStateLoadScreen(u32 width, u32 height, const u8* pixels, u32 pitch);
 
 class GSApp
 {

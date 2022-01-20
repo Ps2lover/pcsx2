@@ -398,6 +398,7 @@ public:
 	void SetSoftwareRendering(bool software, bool display_message = true);
 	void ToggleSoftwareRendering();
 	bool SaveMemorySnapshot(u32 width, u32 height, std::vector<u32>* pixels);
+	void RenderSaveStateLoadScreen(u32 width, u32 height, std::vector<u32> pixels);
 
 protected:
 	void OpenGS();
