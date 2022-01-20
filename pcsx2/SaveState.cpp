@@ -739,7 +739,7 @@ static void CheckVersion(pxInputStream& thr)
 		throw Exception::SaveStateLoadError(thr.GetStreamName())
 		.SetDiagMsg(pxsFmt(L"Savestate uses an unknown savestate version.\n(PCSX2 ver=%x, state ver=%x)", g_SaveVersion, savever))
 		.SetUserMsg(_("Cannot load this savestate. The state is an unsupported version."));
-};
+}
 
 void SaveState_DownloadState(ArchiveEntryList* destlist)
 {
@@ -834,6 +834,86 @@ static bool SaveState_CompressScreenshot(SaveStateScreenshotData* data, wxZipOut
 
 	png_write_end(png_ptr, nullptr);
 	return true;
+}
+
+static void SaveState_RenderScreenshot(pxInputStream& thr)
+{
+	png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+	if (!png_ptr)
+		return;
+
+	png_infop info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr)
+	{
+		png_destroy_read_struct(&png_ptr, nullptr, nullptr);
+		return;
+	}
+
+	ScopedGuard cleanup([&png_ptr, &info_ptr]() {
+		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+	});
+
+	if (setjmp(png_jmpbuf(png_ptr)))
+		return;
+
+	png_set_read_fn(png_ptr, &thr, [](png_structp png_ptr, png_bytep data_ptr, png_size_t size) {
+		try
+		{
+			((pxInputStream*)png_get_io_ptr(png_ptr))->Read(data_ptr, size);
+		}
+		catch (...)
+		{
+		}
+	});
+
+	png_read_info(png_ptr, info_ptr);
+
+	png_uint_32 width = 0;
+	png_uint_32 height = 0;
+	int bitDepth = 0;
+	int colorType = -1;
+	if (png_get_IHDR(png_ptr, info_ptr, &width, &height, &bitDepth, &colorType, nullptr, nullptr, nullptr) != 1 ||
+		width == 0 || height == 0)
+	{
+		return;
+	}
+
+	const png_uint_32 bytesPerRow = png_get_rowbytes(png_ptr, info_ptr);
+	std::vector<u8> rowData(bytesPerRow);
+
+	std::vector<u32> pixels(width * height);
+
+	for (u32 y = 0; y < height; y++)
+	{
+		png_read_row(png_ptr, static_cast<png_bytep>(rowData.data()), nullptr);
+
+		const u8* row_ptr = rowData.data();
+		u32* out_ptr = &pixels[y * width];
+		if (colorType == PNG_COLOR_TYPE_RGB)
+		{
+			for (u32 x = 0; x < width; x++)
+			{
+				u32 pixel = static_cast<u32>(*(row_ptr)++);
+				pixel |= static_cast<u32>(*(row_ptr)++) << 8;
+				pixel |= static_cast<u32>(*(row_ptr)++) << 16;
+				pixel |= static_cast<u32>(*(row_ptr)++) << 24;
+				*(out_ptr++) = pixel | 0xFF000000u; // make opaque
+			}
+		}
+		else if (colorType == PNG_COLOR_TYPE_RGBA)
+		{
+			for (u32 x = 0; x < width; x++)
+			{
+				u32 pixel;
+				std::memcpy(&pixel, row_ptr, sizeof(u32));
+				row_ptr += sizeof(u32);
+				*(out_ptr++) = pixel | 0xFF000000u; // make opaque
+			}
+		}
+	}
+
+	DevCon.WriteLn("Rendering %ux%u screenshot", width, height);
+	GetMTGS().RenderSaveStateLoadScreen(width, height, std::move(pixels));
 }
 
 // --------------------------------------------------------------------------------------
@@ -973,12 +1053,8 @@ void SaveState_UnzipFromDisk(const wxString& filename)
 			continue;
 		}
 
-		// No point in finding screenshots when loading states -- the screenshots are
-		// only useful for the UI savestate browser.
-		/*if (entry->GetName().CmpNoCase(EntryFilename_Screenshot) == 0)
-		{
-			foundScreenshot = true;
-		}*/
+		if (entry->GetName().CmpNoCase(EntryFilename_Screenshot) == 0)
+			SaveState_RenderScreenshot(*reader);
 
 		for (uint i = 0; i < std::size(SavestateEntries); ++i)
 		{

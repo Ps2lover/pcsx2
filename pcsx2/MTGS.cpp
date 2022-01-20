@@ -1005,3 +1005,11 @@ bool SysMtgsThread::SaveMemorySnapshot(u32 width, u32 height, std::vector<u32>* 
 	WaitGS(false, false, false);
 	return result;
 }
+
+void SysMtgsThread::RenderSaveStateLoadScreen(u32 width, u32 height, std::vector<u32> pixels)
+{
+	RunOnGSThread([width, height, pixels = std::move(pixels)]() {
+		GSRenderSaveStateLoadScreen(width, height, reinterpret_cast<const u8*>(pixels.data()), width * sizeof(u32));
+	});
+	WaitGS(false, false, false);
+}

@@ -389,6 +389,35 @@ static GSVector4 CalculateDrawRect(s32 window_width, s32 window_height, s32 text
 	return ret;
 }
 
+void GSRenderSaveStateLoadScreen(u32 width, u32 height, const u8* pixels, u32 pitch)
+{
+	// reuse is fine here, not like presenting is cheap
+	GSTexture* tex = g_gs_device->CreateTexture(width, height, false, GSTexture::Format::Color, true);
+	if (tex)
+		tex->Update(GSVector4i(0, 0, width, height), pixels, pitch);
+
+	g_gs_device->ResetAPIState();
+	if (Host::BeginPresentFrame(false))
+	{
+		HostDisplay* display = g_gs_device->GetDisplay();
+
+		const GSVector4 draw_rect(CalculateDrawRect(display->GetWindowWidth(), display->GetWindowHeight(),
+			tex->GetWidth(), tex->GetHeight(), display->GetDisplayAlignment(), display->UsesLowerLeftOrigin()));
+
+		static constexpr ShaderConvert s_shader[5] = {ShaderConvert::COPY, ShaderConvert::SCANLINE,
+			ShaderConvert::DIAGONAL_FILTER, ShaderConvert::TRIANGULAR_FILTER,
+			ShaderConvert::COMPLEX_FILTER}; // FIXME
+
+		g_gs_device->StretchRect(tex, nullptr, draw_rect, s_shader[GSConfig.TVShader], GSConfig.LinearPresent);
+
+		Host::EndPresentFrame();
+	}
+	g_gs_device->RestoreAPIState();
+
+	if (tex)
+		g_gs_device->Recycle(tex);
+}
+
 void GSRenderer::VSync(u32 field, bool registers_written)
 {
 	GSPerfMonAutoTimer pmat(&g_perfmon);
