@@ -780,6 +780,109 @@ static bool SaveState_CompressScreenshot(SaveStateScreenshotData* data, zip_t* z
 	return true;
 }
 
+static bool SaveState_ReadScreenshot(zip_t* zf, u32* out_width, u32* out_height, std::vector<u32>* out_pixels)
+{
+	auto zff = zip_fopen_managed(zf, EntryFilename_Screenshot, 0);
+	if (!zff)
+		return false;
+
+	png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+	if (!png_ptr)
+		return false;
+
+	png_infop info_ptr = png_create_info_struct(png_ptr);
+	if (!info_ptr)
+	{
+		png_destroy_read_struct(&png_ptr, nullptr, nullptr);
+		return false;
+	}
+
+	ScopedGuard cleanup([&png_ptr, &info_ptr]() {
+		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+	});
+
+	if (setjmp(png_jmpbuf(png_ptr)))
+		return false;
+
+	png_set_read_fn(png_ptr, zff.get(), [](png_structp png_ptr, png_bytep data_ptr, png_size_t size) {
+		zip_fread(static_cast<zip_file_t*>(png_get_io_ptr(png_ptr)), data_ptr, size);
+	});
+
+	png_read_info(png_ptr, info_ptr);
+
+	png_uint_32 width = 0;
+	png_uint_32 height = 0;
+	int bitDepth = 0;
+	int colorType = -1;
+	if (png_get_IHDR(png_ptr, info_ptr, &width, &height, &bitDepth, &colorType, nullptr, nullptr, nullptr) != 1 ||
+		width == 0 || height == 0)
+	{
+		return false;
+	}
+
+	const png_uint_32 bytesPerRow = png_get_rowbytes(png_ptr, info_ptr);
+	std::vector<u8> rowData(bytesPerRow);
+
+	*out_width = width;
+	*out_height = height;
+	out_pixels->resize(width * height);
+
+	for (u32 y = 0; y < height; y++)
+	{
+		png_read_row(png_ptr, static_cast<png_bytep>(rowData.data()), nullptr);
+
+		const u8* row_ptr = rowData.data();
+		u32* out_ptr = &out_pixels->at(y * width);
+		if (colorType == PNG_COLOR_TYPE_RGB)
+		{
+			for (u32 x = 0; x < width; x++)
+			{
+				u32 pixel = static_cast<u32>(*(row_ptr)++);
+				pixel |= static_cast<u32>(*(row_ptr)++) << 8;
+				pixel |= static_cast<u32>(*(row_ptr)++) << 16;
+				pixel |= static_cast<u32>(*(row_ptr)++) << 24;
+				*(out_ptr++) = pixel | 0xFF000000u; // make opaque
+			}
+		}
+		else if (colorType == PNG_COLOR_TYPE_RGBA)
+		{
+			for (u32 x = 0; x < width; x++)
+			{
+				u32 pixel;
+				std::memcpy(&pixel, row_ptr, sizeof(u32));
+				row_ptr += sizeof(u32);
+				*(out_ptr++) = pixel | 0xFF000000u; // make opaque
+			}
+		}
+	}
+
+	return true;
+}
+
+bool SaveState_ReadScreenshot(const std::string& filename, u32* out_width, u32* out_height, std::vector<u32>* out_pixels)
+{
+	zip_error_t ze = {};
+	auto zf = zip_open_managed(filename.c_str(), ZIP_RDONLY, &ze);
+	if (!zf)
+	{
+		Console.Error("Failed to open zip file '%s' for save state screenshot: %s", filename.c_str(), zip_error_strerror(&ze));
+		return false;
+	}
+
+	return SaveState_ReadScreenshot(zf.get(), out_width, out_height, out_pixels);
+}
+
+static void SaveState_RenderScreenshot(zip_t* zf)
+{
+	u32 width, height;
+	std::vector<u32> pixels;
+	if (!SaveState_ReadScreenshot(zf, &width, &height, &pixels))
+		return;
+
+	DevCon.WriteLn("Rendering %ux%u screenshot", width, height);
+	GetMTGS().RenderSaveStateLoadScreen(width, height, std::move(pixels));
+}
+
 // --------------------------------------------------------------------------------------
 //  CompressThread_VmState
 // --------------------------------------------------------------------------------------
@@ -937,6 +1040,9 @@ void SaveState_UnzipFromDisk(const std::string& filename)
 
 	// look for version and screenshot information in the zip stream:
 	CheckVersion(filename, zf.get());
+
+	// render screenshot to display while we're decompressing
+	SaveState_RenderScreenshot(zf.get());
 
 	// check that all parts are included
 	const s64 internal_index = CheckFileExistsInState(zf.get(), EntryFilename_InternalStructures);
