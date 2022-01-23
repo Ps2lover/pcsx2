@@ -356,6 +356,7 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		   OpEqu(AccurateBlendingUnit) &&
 		   OpEqu(CRCHack) &&
 		   OpEqu(TextureFiltering) &&
+		   OpEqu(TexturePreloading) &&
 		   OpEqu(Dithering) &&
 		   OpEqu(MaxAnisotropy) &&
 		   OpEqu(SWExtraThreads) &&
@@ -508,7 +509,6 @@ void Pcsx2Config::GSOptions::ReloadIniSettings()
 	GSSettingBoolEx(SaveFrame, "savef");
 	GSSettingBoolEx(SaveTexture, "savet");
 	GSSettingBoolEx(SaveDepth, "savez");
-	GSSettingBoolEx(PreloadTexture, "preload_texture");
 
 	GSSettingIntEnumEx(InterlaceMode, "interlace");
 
@@ -521,6 +521,7 @@ void Pcsx2Config::GSOptions::ReloadIniSettings()
 	GSSettingIntEnumEx(AccurateBlendingUnit, "accurate_blending_unit");
 	GSSettingIntEnumEx(CRCHack, "crc_hack_level");
 	GSSettingIntEnumEx(TextureFiltering, "filter");
+	GSSettingIntEnumEx(TexturePreloading, "texture_preloading");
 	GSSettingIntEx(Dithering, "dithering_ps2");
 	GSSettingIntEx(MaxAnisotropy, "MaxAnisotropy");
 	GSSettingIntEx(SWExtraThreads, "extrathreads");

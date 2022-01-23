@@ -179,6 +179,13 @@ enum class AccBlendLevel : u8
 	Ultra,
 };
 
+enum class TexturePreloadingLevel : u8
+{
+	None,
+	Partial,
+	Full,
+};
+
 // Template function for casting enumerations to their underlying type
 template <typename Enumeration>
 typename std::underlying_type<Enumeration>::type enum_cast(Enumeration E)
@@ -451,8 +458,7 @@ struct Pcsx2Config
 					SaveRT : 1,
 					SaveFrame : 1,
 					SaveTexture : 1,
-					SaveDepth : 1,
-					PreloadTexture : 1;
+					SaveDepth : 1;
 			};
 		};
 
@@ -491,6 +497,7 @@ struct Pcsx2Config
 		AccBlendLevel AccurateBlendingUnit{AccBlendLevel::Basic};
 		CRCHackLevel CRCHack{CRCHackLevel::Automatic};
 		BiFiltering TextureFiltering{BiFiltering::PS2};
+		TexturePreloadingLevel TexturePreloading{TexturePreloadingLevel::None};
 		int Dithering{2};
 		int MaxAnisotropy{0};
 		int SWExtraThreads{2};

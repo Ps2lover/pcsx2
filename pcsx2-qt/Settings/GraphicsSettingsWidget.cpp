@@ -87,7 +87,8 @@ GraphicsSettingsWidget::GraphicsSettingsWidget(QWidget* parent, SettingsDialog* 
   SettingWidgetBinder::BindWidgetToBoolSetting(m_ui.conservativeBufferAllocation, "EmuCore/GS",
                                                "conservative_framebuffer", true);
   SettingWidgetBinder::BindWidgetToBoolSetting(m_ui.gpuPaletteConversion, "EmuCore/GS", "paltex", false);
-  SettingWidgetBinder::BindWidgetToBoolSetting(m_ui.preloadTexture, "EmuCore/GS", "preload_texture", false);
+  SettingWidgetBinder::BindWidgetToIntSetting(m_ui.texturePreloading, "EmuCore/GS", "texture_preloading",
+	  static_cast<int>(TexturePreloadingLevel::None));
 
   //////////////////////////////////////////////////////////////////////////
   // HW Renderer Fixes

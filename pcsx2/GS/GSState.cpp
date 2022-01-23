@@ -2567,8 +2567,8 @@ void GSState::GetTextureMinMax(GSVector4i& r, const GIFRegTEX0& TEX0, const GIFR
 	GSVector4i tr(0, 0, w, h);
 
 	// don't bother checking when preload is on, since we're going to test the whole thing anyway
-	if (GSConfig.PreloadTexture && GSConfig.UseHardwareRenderer() &&
-		CanPreloadTextureSize(static_cast<u32>(tw), static_cast<u32>(th)))
+	if (GSConfig.UseHardwareRenderer() && ((CanCacheTextureSize(static_cast<u32>(tw), static_cast<u32>(th)) && !IsMipMapActive()) ||
+											  CanPreloadTextureSize(static_cast<u32>(tw), static_cast<u32>(th))))
 	{
 		r = tr;
 		return;
