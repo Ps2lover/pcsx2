@@ -113,6 +113,7 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 {
 	const GSVector2i size(width, height);
 	const bool prefer_new_texture = (m_features.prefer_new_textures && type == GSTexture::Type::Texture && !prefer_reuse);
+	const u32 frame_number = m_frame;
 
 	GSTexture* t = nullptr;
 	auto fallback = m_pool.end();
@@ -125,7 +126,7 @@ GSTexture* GSDevice::FetchSurface(GSTexture::Type type, int width, int height, i
 
 		if (t->GetType() == type && t->GetFormat() == format && t->GetSize() == size && t->GetMipmapLevels() == levels)
 		{
-			if (!prefer_new_texture)
+			if (!prefer_new_texture || t->last_frame_used != frame_number)
 			{
 				m_pool.erase(i);
 				break;
