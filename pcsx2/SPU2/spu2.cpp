@@ -33,7 +33,10 @@ using namespace Threading;
 
 std::recursive_mutex mtx_SPU2Status;
 
+static int ConsoleSampleRate = 48000;
 int SampleRate = 48000;
+
+static double DeviceSampleRateMultiplier = 1.0;
 
 static bool IsOpened = false;
 static bool IsInitialized = false;
@@ -120,6 +123,36 @@ void SPU2writeDMA7Mem(u16* pMem, u32 size)
 	Cores[1].DoDMAwrite(pMem, size);
 }
 
+static void SPU2InitSndBuffer()
+{
+	SndBuffer::Cleanup();
+	try
+	{
+		SndBuffer::Init();
+		return;
+	}
+	catch (std::exception& ex)
+	{
+		if (SampleRate != ConsoleSampleRate)
+		{
+			try
+			{
+				Console.Error("Failed to init SPU2 at adjusted sample rate %u, trying console rate.", SampleRate);
+				SndBuffer::Cleanup();
+				SampleRate = ConsoleSampleRate;
+				SndBuffer::Init();
+				return;
+			}
+			catch (std::exception& ex2)
+			{
+			}
+		}
+
+		Console.Error("SPU2 Error: Could not initialize device, or something.\nReason: %s", ex.what());
+		SPU2close();
+	}
+}
+
 s32 SPU2reset(PS2Modes isRunningPSXMode)
 {
 	int requiredSampleRate = (isRunningPSXMode == PS2Modes::PSX) ? 44100 : 48000;
@@ -137,22 +170,29 @@ s32 SPU2reset(PS2Modes isRunningPSXMode)
 		Cores[1].Init(1);
 	}
 
-	if (SampleRate != requiredSampleRate)
+	if (ConsoleSampleRate != requiredSampleRate)
 	{
-		SampleRate = requiredSampleRate;
-		SndBuffer::Cleanup();
-		try
-		{
-			SndBuffer::Init();
-		}
-		catch (std::exception& ex)
-		{
-			fprintf(stderr, "SPU2 Error: Could not initialize device, or something.\nReason: %s", ex.what());
-			SPU2close();
-			return -1;
-		}
+		ConsoleSampleRate = requiredSampleRate;
+		SampleRate = static_cast<int>(std::round(static_cast<double>(ConsoleSampleRate) * DeviceSampleRateMultiplier));
+		SPU2InitSndBuffer();
 	}
+
 	return 0;
+}
+
+void SPU2SetDeviceSampleRateMultiplier(double multiplier)
+{
+	if (DeviceSampleRateMultiplier == multiplier)
+		return;
+
+	DeviceSampleRateMultiplier = multiplier;
+
+	const int new_sample_rate = static_cast<int>(std::round(static_cast<double>(ConsoleSampleRate) * multiplier));
+	if (SampleRate == new_sample_rate)
+		return;
+
+	SampleRate = new_sample_rate;
+	SPU2InitSndBuffer();
 }
 
 s32 SPU2init()
@@ -289,7 +329,7 @@ s32 SPU2open()
 
 	try
 	{
-		SndBuffer::Init();
+		SPU2InitSndBuffer();
 
 #if defined(_WIN32) && !defined(PCSX2_CORE)
 		DspLoadLibrary(dspPlugin, dspPluginModule);

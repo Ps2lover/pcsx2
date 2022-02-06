@@ -493,7 +493,6 @@ void GSRenderer::VSync(u32 field, bool registers_written)
 
 	const int fb_sprite_blits = g_perfmon.GetDisplayFramebufferSpriteBlits();
 	const bool fb_sprite_frame = (fb_sprite_blits > 0);
-	PerformanceMetrics::Update(registers_written, fb_sprite_frame);
 
 	bool skip_frame = m_frameskip;
 	if (GSConfig.SkipDuplicateFrames)
@@ -531,6 +530,7 @@ void GSRenderer::VSync(u32 field, bool registers_written)
 		if (Host::BeginPresentFrame(true))
 			Host::EndPresentFrame();
 		g_gs_device->RestoreAPIState();
+		PerformanceMetrics::Update(registers_written, fb_sprite_frame);
 		return;
 	}
 
@@ -563,6 +563,7 @@ void GSRenderer::VSync(u32 field, bool registers_written)
 			PerformanceMetrics::OnGPUPresent(Host::GetHostDisplay()->GetAndResetAccumulatedGPUTime());
 	}
 	g_gs_device->RestoreAPIState();
+	PerformanceMetrics::Update(registers_written, fb_sprite_frame);
 
 	// snapshot
 	// wx is dumb and call this from the UI thread...
