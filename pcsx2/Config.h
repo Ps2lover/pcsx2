@@ -412,6 +412,7 @@ struct Pcsx2Config
 				bool
 					IntegerScaling : 1,
 					LinearPresent : 1,
+					SyncToHostRefreshRate : 1,
 					UseDebugDevice : 1,
 					UseBlitSwapChain : 1,
 					DisableShaderCache : 1,

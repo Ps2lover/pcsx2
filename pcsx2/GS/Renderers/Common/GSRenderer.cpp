@@ -402,7 +402,6 @@ void GSRenderer::VSync(u32 field, bool registers_written)
 
 	const int fb_sprite_blits = g_perfmon.GetDisplayFramebufferSpriteBlits();
 	const bool fb_sprite_frame = (fb_sprite_blits > 0);
-	PerformanceMetrics::Update(registers_written, fb_sprite_frame);
 
 	g_gs_device->AgePool();
 
@@ -415,6 +414,7 @@ void GSRenderer::VSync(u32 field, bool registers_written)
 		if (Host::BeginPresentFrame(skip_frame))
 			Host::EndPresentFrame();
 		g_gs_device->RestoreAPIState();
+		PerformanceMetrics::Update(registers_written, fb_sprite_frame);
 		return;
 	}
 
@@ -442,6 +442,7 @@ void GSRenderer::VSync(u32 field, bool registers_written)
 		Host::EndPresentFrame();
 	}
 	g_gs_device->RestoreAPIState();
+	PerformanceMetrics::Update(registers_written, fb_sprite_frame);
 
 	// snapshot
 

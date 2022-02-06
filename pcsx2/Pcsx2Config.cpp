@@ -279,6 +279,7 @@ Pcsx2Config::GSOptions::GSOptions()
 
 	IntegerScaling = false;
 	LinearPresent = true;
+	SyncToHostRefreshRate = false;
 	UseDebugDevice = false;
 	UseBlitSwapChain = false;
 	DisableShaderCache = false;
@@ -422,6 +423,7 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 
 #ifdef PCSX2_CORE
 	// These are loaded from GSWindow in wx.
+	SettingsWrapBitBool(SyncToHostRefreshRate);
 	SettingsWrapEnumEx(AspectRatio, "AspectRatio", AspectRatioNames);
 	SettingsWrapEnumEx(FMVAspectRatioSwitch, "FMVAspectRatioSwitch", FMVAspectRatioSwitchNames);
 
