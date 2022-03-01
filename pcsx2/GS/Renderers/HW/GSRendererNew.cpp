@@ -536,6 +536,7 @@ void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER, bool&
 	if (FBMASK || PABE || !(PRIM->ABE || AA1))
 	{
 		m_conf.blend = {};
+		m_conf.ps.no_color1 = true;
 		return;
 	}
 
@@ -720,6 +721,18 @@ void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER, bool&
 			}
 		}
 	}
+	else if (features.framebuffer_fetch)
+	{
+		// If we have fbfetch, use software blending when we need the fb value for anything else.
+		// This saves outputting the second color when it's not needed.
+		if (m_conf.require_one_barrier || m_conf.require_full_barrier)
+		{
+			sw_blending = true;
+			color_dest_blend = false;
+			accumulation_blend = false;
+			blend_mix = false;
+		}
+	}
 
 	// Color clip
 	if (m_env.COLCLAMP.CLAMP == 0)
@@ -855,6 +868,9 @@ void GSRendererNew::EmulateBlending(bool& DATE_PRIMID, bool& DATE_BARRIER, bool&
 			}
 			// Remove the addition/substraction from the SW blending
 			m_conf.ps.blend_d = 2;
+
+			// Dual source output not needed (accumulation blend replaces it with ONE).
+			m_conf.ps.no_color1 = true;
 
 			// Only Ad case will require one barrier
 			m_conf.require_one_barrier |= blend_ad_alpha_masked;
@@ -1469,6 +1485,10 @@ void GSRendererNew::DrawPrims(GSTexture* rt, GSTexture* ds, GSTextureCache::Sour
 		m_conf.require_one_barrier = false;
 		m_conf.require_full_barrier = false;
 	}
+
+	// Don't emit the second color output from the pixel shader when it's
+	// not going to be used (no or sw blending).
+	m_conf.ps.no_color1 |= (m_conf.blend.index == 0);
 
 	if (m_conf.ps.scanmsk & 2)
 		DATE_PRIMID = false; // to have discard in the shader work correctly

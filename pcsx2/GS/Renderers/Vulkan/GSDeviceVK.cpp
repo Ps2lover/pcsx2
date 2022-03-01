@@ -1865,6 +1865,7 @@ VkShaderModule GSDeviceVK::GetTFXFragmentShader(const GSHWDrawConfig::PSSelector
 	AddMacro(ss, "PS_SCALE_FACTOR", GSConfig.UpscaleMultiplier);
 	AddMacro(ss, "PS_TEX_IS_FB", sel.tex_is_fb);
 	AddMacro(ss, "PS_NO_ABLEND", sel.no_ablend);
+	AddMacro(ss, "PS_NO_COLOR1", sel.no_color1);
 	AddMacro(ss, "PS_ONLY_ALPHA", sel.only_alpha);
 	ss << m_tfx_source;
 
@@ -1884,9 +1885,20 @@ VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
 		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, // Triangle
 	}};
 
+	GSHWDrawConfig::BlendState pbs{p.bs};
+	GSHWDrawConfig::PSSelector pps{p.ps};
+	if ((p.cms.wrgba & 0x7) == 0)
+	{
+		// disable blending when colours are masked
+		pbs.index = 0;
+	}
+
+	// don't output alpha blend when blending is disabled
+	pps.no_color1 = (pbs.index == 0);
+
 	VkShaderModule vs = GetTFXVertexShader(p.vs);
 	VkShaderModule gs = p.gs.expand ? GetTFXGeometryShader(p.gs) : VK_NULL_HANDLE;
-	VkShaderModule fs = GetTFXFragmentShader(p.ps);
+	VkShaderModule fs = GetTFXFragmentShader(pps);
 	if (vs == VK_NULL_HANDLE || (p.gs.expand && gs == VK_NULL_HANDLE) || fs == VK_NULL_HANDLE)
 		return VK_NULL_HANDLE;
 
@@ -1948,19 +1960,19 @@ VkPipeline GSDeviceVK::CreateTFXPipeline(const PipelineSelector& p)
 		gpb.SetBlendAttachment(0, true, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_MIN, VK_BLEND_FACTOR_ONE,
 			VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_COLOR_COMPONENT_R_BIT);
 	}
-	else if (p.bs.index > 0)
+	else if (pbs.index > 0)
 	{
-		const HWBlend blend = GetBlend(p.bs.index, p.bs.replace_dual_src);
+		const HWBlend blend = GetBlend(pbs.index, pbs.replace_dual_src);
 #ifdef PCSX2_DEVBUILD
-		pxAssertRel(m_features.dual_source_blend || p.bs.is_accumulation ||
+		pxAssertRel(m_features.dual_source_blend || pbs.is_accumulation ||
 			(blend.src != VK_BLEND_FACTOR_SRC1_ALPHA && blend.src != VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA &&
 				blend.dst != VK_BLEND_FACTOR_SRC1_ALPHA && blend.dst != VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA),
 			"Not using dual source factors");
 #endif
 
 		gpb.SetBlendAttachment(0, true,
-			(p.bs.is_accumulation || p.bs.is_mixed_hw_sw) ? VK_BLEND_FACTOR_ONE : static_cast<VkBlendFactor>(blend.src),
-			p.bs.is_accumulation ? VK_BLEND_FACTOR_ONE : static_cast<VkBlendFactor>(blend.dst),
+			(pbs.is_accumulation || pbs.is_mixed_hw_sw) ? VK_BLEND_FACTOR_ONE : static_cast<VkBlendFactor>(blend.src),
+			pbs.is_accumulation ? VK_BLEND_FACTOR_ONE : static_cast<VkBlendFactor>(blend.dst),
 			static_cast<VkBlendOp>(blend.op), VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, p.cms.wrgba);
 	}
 	else
