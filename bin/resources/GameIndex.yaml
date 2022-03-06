@@ -168,6 +168,7 @@ PCPX-96322:
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 PCPX-96554:
   name: "Games of Our Style: Tokyo Game Show 2003 Disc"
   region: "NTSC-J"
@@ -248,6 +249,8 @@ SCAJ-20003:
 SCAJ-20004:
   name: ".hack//Outbreak Part 3"
   region: "NTSC-Unk"
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SCPS-55029"
     - "SCPS-55042"
@@ -334,6 +337,8 @@ SCAJ-20023:
 SCAJ-20024:
   name: ".hack//Quarantine Part 4"
   region: "NTSC-Unk"
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SCPS-55029"
     - "SCPS-55042"
@@ -552,6 +557,8 @@ SCAJ-20086:
   region: "NTSC-Unk"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLPS-29001"
     - "SLPS-29002"
@@ -564,6 +571,8 @@ SCAJ-20087:
   region: "NTSC-Unk"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLPS-29001"
     - "SLPS-29002"
@@ -612,6 +621,7 @@ SCAJ-20099:
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCAJ-20100:
   name: "Tenchu Kurenai"
   region: "NTSC-Ch-J"
@@ -626,6 +636,9 @@ SCAJ-20104:
   region: "NTSC-Unk"
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    alignSprite: 1
+    roundSprite: 1
 SCAJ-20105:
   name: "Armored Core - Nine breaker"
   region: "NTSC-Unk"
@@ -645,6 +658,9 @@ SCAJ-20109:
 SCAJ-20110:
   name: "Dragon Quest VIII - Sora to Daichi to Norowareshi Himegimi"
   region: "NTSC-Unk"
+  gsHWFixes:
+    halfPixelOffset: 2
+    roundSprite: 2
 SCAJ-20111:
   name: "Crash Bandicoot 5"
   region: "NTSC-Unk"
@@ -697,6 +713,8 @@ SCAJ-20122:
 SCAJ-20123:
   name: "Wild ARMs - The 4th Detonator"
   region: "NTSC-Unk"
+  gsHWFixes:
+    wildArmsHack: 1
   memcardFilters:
     - "SCAJ-20123"
     - "SCPS-15091"
@@ -716,11 +734,15 @@ SCAJ-20125:
   region: "NTSC-Unk"
   clampModes:
     eeClampMode: 2  # Fixes camera and stops constant coin noises on Pirates Cove
+  gsHWFixes:
+    alignSprite: 1
 SCAJ-20126:
   name: "Tekken 5"
   region: "NTSC-Unk"
   clampModes:
     eeClampMode: 2  # Fixes camera and stops constant coin noises on Pirates Cove
+  gsHWFixes:
+    alignSprite: 1
 SCAJ-20127:
   name: "EyeToy - Play 2 [with Camera]"
   region: "NTSC-Unk"
@@ -769,6 +791,9 @@ SCAJ-20136:
   region: "NTSC-Unk"
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    alignSprite: 1
+    roundSprite: 1
 SCAJ-20137:
   name: "Musashiden II - Blademaster"
   region: "NTSC-Unk"
@@ -807,6 +832,8 @@ SCAJ-20146:
   compat: 5
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    halfPixelOffset: 1
   memcardFilters:
     - "SCAJ-20146"
     - "SCAJ-20196"
@@ -835,6 +862,8 @@ SCAJ-20152:
   region: "NTSC-J"
   gameFixes:
     - EETimingHack # Mitigates bounciness of vertical shaking but better fix with EE cyclerate +1.
+  gsHWFixes:
+    alignSprite: 1
 SCAJ-20153:
   name: "Code Age Commanders"
   region: "NTSC-J"
@@ -865,6 +894,9 @@ SCAJ-20159:
   region: "NTSC-Ch-E-J"
   gameFixes:
     - EETimingHack # Fixes bad colours on character select when in Progressive Scan.
+  gsHWFixes:
+    alignSprite: 1
+    wildArmsHack: 1
 SCAJ-20160:
   name: "Yoshitsuneki"
   region: "NTSC-Unk"
@@ -878,9 +910,12 @@ SCAJ-20162:
   region: "NTSC-Unk"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
 SCAJ-20163:
   name: "Tales of the Abyss"
   region: "NTSC-Unk"
+  gsHWFixes:
+    halfPixelOffset: 2
 SCAJ-20164:
   name: "Kingdom Hearts II"
   region: "NTSC-Unk"
@@ -901,6 +936,8 @@ SCAJ-20168:
 SCAJ-20169:
   name: "Dirge of Cerberus - Final Fantasy VII"
   region: "NTSC-Unk"
+  gsHWFixes:
+    halfPixelOffset: 1
 SCAJ-20170:
   name: "Tourist Trophy"
   region: "NTSC-Ch"
@@ -916,6 +953,9 @@ SCAJ-20173:
   region: "NTSC-Unk"
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    alignSprite: 1
+    roundSprite: 1
   memcardFilters:
     - "SCAJ-20173"
     - "SLPS-25629"
@@ -939,6 +979,9 @@ SCAJ-20177:
   compat: 5
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SCAJ-20178:
   name: "Ape Escape - Million Monkeys"
   region: "NTSC-Unk"
@@ -949,12 +992,14 @@ SCAJ-20179:
   gsHWFixes:
     textureInsideRT: 1
     autoFlush: 1
+    halfPixelOffset: 1
 SCAJ-20180:
   name: "Xenosaga Episode III - Also Sprach Zarathustra [Disc2of2]"
   region: "NTSC-Unk"
   gsHWFixes:
     textureInsideRT: 1
     autoFlush: 1
+    halfPixelOffset: 1
 SCAJ-20181:
   name: "Minna no Tennis"
   region: "NTSC-Unk"
@@ -966,6 +1011,8 @@ SCAJ-20182:
 SCAJ-20183:
   name: "Wild ARMs - The Vth Vanguard"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
 SCAJ-20184:
   name: "Seiken Densetsu 4"
   region: "NTSC-Unk"
@@ -1002,6 +1049,7 @@ SCAJ-20196:
   region: "NTSC-Ch"
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
   memcardFilters:
     - "SCAJ-20146"
     - "SCAJ-20196"
@@ -1016,6 +1064,9 @@ SCAJ-20197:
   compat: 5
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SCAJ-20198:
   name: "Everybody's Tennis [PlayStation 2 The Best]"
   region: "NTSC-Unk"
@@ -1024,6 +1075,8 @@ SCAJ-20199:
   region: "NTSC-Unk"
   clampModes:
     eeClampMode: 2  # Fixes camera and stops constant coin noises on Pirates Cove
+  gsHWFixes:
+    alignSprite: 1
 SCAJ-25002:
   name: "Shinobi"
   region: "NTSC-Unk"
@@ -1057,9 +1110,12 @@ SCAJ-30001:
   compat: 5
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
 SCAJ-30002:
   name: "Wild ARMs - Alter Code F"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
 SCAJ-30003:
   name: "Siren"
   region: "NTSC-Unk"
@@ -1148,6 +1204,7 @@ SCCS-40005:
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCCS-40006:
   name: "Shin Sangoku Musou 2"
   region: "NTSC-C"
@@ -1193,6 +1250,9 @@ SCCS-60002:
 SCED-50041:
   name: "Tekken Tag Tournament [Demo]"
   region: "PAL-E"
+  gsHWFixes:
+    alignSprite: 1
+    texturePreloading: 1
 SCED-50065:
   name: "Official PlayStation 2 Magazine Demo 1"
   region: "PAL-M5"
@@ -2159,6 +2219,9 @@ SCES-50001:
   name: "Tekken Tag Tournament"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    alignSprite: 1
+    texturePreloading: 1
 SCES-50002:
   name: "FantaVision"
   region: "PAL-M5"
@@ -2405,6 +2468,7 @@ SCES-50760:
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCES-50781:
   name: "Destruction Derby Arena [Beta, Promo, & Full Retail]"
   region: "PAL-M6"
@@ -2430,6 +2494,8 @@ SCES-50878:
   name: "Tekken 4"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    alignSprite: 1
 SCES-50885:
   name: "Ape Escape 2"
   region: "PAL-E"
@@ -3085,6 +3151,8 @@ SCES-53202:
   compat: 5
   clampModes:
     eeClampMode: 2  # Fixes camera and stops constant coin noises on Pirates Cove.
+  gsHWFixes:
+    alignSprite: 1
 SCES-53247:
   name: "WRC Rally Evolved"
   region: "PAL-M8"
@@ -3135,6 +3203,9 @@ SCES-53312:
   compat: 5
   roundModes:
     vuRoundMode: 3
+  gsHWFixes:
+    alignSprite: 1
+    wildArmsHack: 1
 SCES-53315:
   name: "EyeToy - Play 3"
   region: "PAL-M12"
@@ -3147,6 +3218,7 @@ SCES-53326:
   compat: 5
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
   memcardFilters:
     - "SCES-53326"
     - "SCES-50760"
@@ -3241,6 +3313,8 @@ SCES-53688:
   compat: 5
   gameFixes:
     - EETimingHack # Mitigates bounciness of vertical shaking but better fix with EE cyclerate +1.
+  gsHWFixes:
+    alignSprite: 1
 SCES-53795:
   name: "SingStar '80s"
   region: "PAL-Unk"
@@ -3510,6 +3584,7 @@ SCES-54552:
   region: "PAL-M5"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
   patches:
     CBB4B383:
       content: |-
@@ -3934,6 +4009,8 @@ SCES-82034:
   region: "PAL-M3"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLES-82034"
     - "SCES-82034"
@@ -3942,6 +4019,8 @@ SCES-82035:
   region: "PAL-M3"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLES-82034"
     - "SCES-82034"
@@ -3994,6 +4073,8 @@ SCKA-20014:
   compat: 5
   clampModes:
     eeClampMode: 3 # Fixes textbox.
+  gsHWFixes:
+    roundSprite: 1
 SCKA-20015:
   name: "Time Crisis 3"
   region: "NTSC-K"
@@ -4054,6 +4135,7 @@ SCKA-20028:
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCKA-20029:
   name: "Gran Turismo Concept 2002 Tokyo-Seoul [PlayStation 2 Big Hit Series]"
   region: "NTSC-K"
@@ -4131,6 +4213,8 @@ SCKA-20049:
   region: "NTSC-K"
   clampModes:
     eeClampMode: 2  # Fixes camera and stops constant coin noises on Pirates Cove.
+  gsHWFixes:
+    alignSprite: 1
 SCKA-20050:
   name: "Tales of Legendia"
   region: "NTSC-K"
@@ -4176,6 +4260,9 @@ SCKA-20059:
   compat: 5
   gameFixes:
     - EETimingHack # Fixes bad colours on character select when in Progressive Scan.
+  gsHWFixes:
+    alignSprite: 1
+    wildArmsHack: 1
 SCKA-20060:
   name: "Ratchet - Deadlocked"
   region: "NTSC-K"
@@ -4190,6 +4277,7 @@ SCKA-20061:
   compat: 5
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
   memcardFilters:
     - "SCKA-20061"
     - "SCPS-15097"
@@ -4218,6 +4306,9 @@ SCKA-20070:
   region: "NTSC-K"
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    alignSprite: 1
+    roundSprite: 1
   patches:
     2799A4E5:
       content: |-
@@ -4246,11 +4337,16 @@ SCKA-20079:
   compat: 5
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SCKA-20081:
   name: "Tekken 5 [PlayStation 2 Big Hit Series]"
   region: "NTSC-K"
   clampModes:
     eeClampMode: 2  # Fixes camera and stops constant coin noises on Pirates Cove.
+  gsHWFixes:
+    alignSprite: 1
 SCKA-20086:
   name: "Shin Onimusha - Dawn of Dreams [Disc1of2]"
   region: "NTSC-K"
@@ -4263,6 +4359,9 @@ SCKA-20090:
   name: "God Hand"
   region: "NTSC-K"
   compat: 5
+  gsHWFixes:
+    mergeSprite: 1
+    wildArmsHack: 1
 SCKA-20092:
   name: "K-1 World Grand Prix 2006"
   region: "NTSC-K"
@@ -4360,6 +4459,7 @@ SCPS-11003:
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCPS-11004:
   name: "Bikkuri Mouse"
   region: "NTSC-J"
@@ -4570,9 +4670,13 @@ SCPS-15022:
 SCPS-15023:
   name: "Wild ARMs - Advanced 3rd"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
 SCPS-15024:
   name: "Wild ARMs - Advanced 3rd"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
 SCPS-15025:
   name: "Saru Get You 2"
   region: "NTSC-J"
@@ -4874,6 +4978,8 @@ SCPS-15090:
 SCPS-15091:
   name: "Wild ARMs - The 4th Detonator"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
   memcardFilters:
     - "SCAJ-20123"
     - "SCPS-15091"
@@ -4888,6 +4994,8 @@ SCPS-15091:
 SCPS-15092:
   name: "Wild ARMs - The 4th Detonator"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
   memcardFilters:
     - "SCAJ-20123"
     - "SCPS-15091"
@@ -4919,6 +5027,7 @@ SCPS-15097:
   compat: 5
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
   memcardFilters:
     - "SCAJ-20146"
     - "SCAJ-20196"
@@ -4954,6 +5063,7 @@ SCPS-15102:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
 SCPS-15103:
   name: "Gunparade Orchestra - Shiro no Shou - Aomori Penguin Densetsu [Limited Edition]"
   region: "NTSC-J"
@@ -5014,6 +5124,8 @@ SCPS-15117:
 SCPS-15118:
   name: "Wild ARMs - The Vth Vanguard"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
 SCPS-15119:
   name: "Bleach - Blade Battlers 2nd"
   region: "NTSC-J"
@@ -5047,6 +5159,8 @@ SCPS-17001:
 SCPS-17002:
   name: "Wild ARMs - Alter Code F"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
 SCPS-17008:
   name: "Nike - Gran Turismo [Limited Edition - 8 inch]"
   region: "NTSC-J"
@@ -5064,6 +5178,7 @@ SCPS-17013:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
   patches:
     CDEE4B19:
       content: |-
@@ -5085,6 +5200,7 @@ SCPS-19103:
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCPS-19104:
   name: "Pipo Saru 2001 [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -5100,6 +5216,7 @@ SCPS-19151:
     vuClampMode: 1  # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCPS-19152:
   name: "Saru Get You! 2 [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -5126,6 +5243,8 @@ SCPS-19204:
 SCPS-19205:
   name: "Wild ARMs - Advanced 3rd [PlayStation 2 The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
 SCPS-19206:
   name: "Ape Escape 2 [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -5167,6 +5286,8 @@ SCPS-19215:
 SCPS-19251:
   name: "Wild ARMs - Alter Code F [PlayStation 2 The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
 SCPS-19252:
   name: "Gran Turismo 4 [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -5188,6 +5309,8 @@ SCPS-19252:
 SCPS-19253:
   name: "Wild ARMs - Alter Code F [PlayStation 2 The Best - Reprint]"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
 SCPS-19301:
   name: "Minna no Golf 4 [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -5255,6 +5378,8 @@ SCPS-19312:
 SCPS-19313:
   name: "Wild ARMs - The 4th Detonator [PlayStation 2 The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
   memcardFilters:
     - "SCAJ-20123"
     - "SCPS-15091"
@@ -5295,6 +5420,7 @@ SCPS-19320:
   region: "NTSC-J"
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
   memcardFilters:
     - "SCAJ-20146"
     - "SCAJ-20196"
@@ -5314,6 +5440,8 @@ SCPS-19321:
 SCPS-19322:
   name: "Wild ARMs - The 4th Detonator [PlayStation 2 The Best - Reprint]"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
   memcardFilters:
     - "SCAJ-20123"
     - "SCPS-15091"
@@ -5328,6 +5456,8 @@ SCPS-19322:
 SCPS-19323:
   name: "Wild ARMs - The 4th Detonator [PlayStation 2 The Best - Reprint]"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
   memcardFilters:
     - "SCAJ-20123"
     - "SCPS-15091"
@@ -5423,6 +5553,7 @@ SCPS-55001:
     vuClampMode: 1  # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCPS-55002:
   name: "Zero"
   region: "NTSC-J"
@@ -5441,6 +5572,8 @@ SCPS-55005:
 SCPS-55006:
   name: "Wild ARMs - Advanced 3rd"
   region: "NTSC-J"
+  gsHWFixes:
+    wildArmsHack: 1
 SCPS-55007:
   name: "Gran Turismo 3 - A-Spec"
   region: "NTSC-J"
@@ -5476,6 +5609,8 @@ SCPS-55017:
   name: "Tekken 4"
   region: "NTSC-J"
   compat: 3
+  gsHWFixes:
+    alignSprite: 1
 SCPS-55018:
   name: "Kingdom of Scribbling"
   region: "NTSC-J"
@@ -5523,6 +5658,8 @@ SCPS-55028:
 SCPS-55029:
   name: ".hack//Infection Part 1"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SCPS-55029"
     - "SCPS-55042"
@@ -5564,6 +5701,8 @@ SCPS-55041:
 SCPS-55042:
   name: ".hack//Mutation Part 2"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SCPS-55029"
     - "SCPS-55042"
@@ -5580,6 +5719,8 @@ SCPS-55042:
 SCPS-55043:
   name: "Fatal Frame"
   region: "NTSC-J"
+  gsHWFixes:
+    alignSprite: 1
 SCPS-55044:
   name: "Energy Airforce"
   region: "NTSC-J"
@@ -5610,6 +5751,7 @@ SCPS-55901:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
   patches:
     A3D63039:
       content: |-
@@ -5642,10 +5784,14 @@ SCPS-56001:
     vuClampMode: 1  # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCPS-56002:
   name: "Tekken Tag Tournament"
   region: "NTSC-K"
   compat: 5
+  gsHWFixes:
+    alignSprite: 1
+    texturePreloading: 1
 SCPS-56003:
   name: "Jak and Daxter: The Precursor Legacy"
   region: "NTSC-K"
@@ -5659,10 +5805,14 @@ SCPS-56006:
   name: "Tekken 4"
   region: "NTSC-K"
   compat: 5
+  gsHWFixes:
+    alignSprite: 1
 SCPS-56008:
   name: "Fatal Frame"
   region: "NTSC-K"
   compat: 5
+  gsHWFixes:
+    alignSprite: 1
   patches:
     default:
       content: |-
@@ -5760,6 +5910,7 @@ SCUS-97113:
     vuClampMode: 1  # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCUS-97114:
   name: "NBA ShootOut 2001"
   region: "NTSC-U"
@@ -5927,6 +6078,7 @@ SCUS-97159:
     vuClampMode: 1 # Otherwise camera does not focus correctly on main character.
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCUS-97160:
   name: "Extermination [Demo]"
   region: "NTSC-U"
@@ -6063,6 +6215,8 @@ SCUS-97203:
   name: "Wild ARMs 3"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    wildArmsHack: 1
 SCUS-97204:
   name: "NCAA Final Four 2003"
   region: "NTSC-U"
@@ -6109,6 +6263,8 @@ SCUS-97213:
   compat: 5
   clampModes:
     eeClampMode: 3 # Fixes textbox.
+  gsHWFixes:
+    roundSprite: 1
 SCUS-97214:
   name: "NCAA GameBreaker 2003"
   region: "NTSC-U"
@@ -6141,6 +6297,8 @@ SCUS-97223:
 SCUS-97224:
   name: "Wild ARMs 3 [Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    wildArmsHack: 1
 SCUS-97225:
   name: "Primal [Demo]"
   region: "NTSC-U"
@@ -6160,6 +6318,8 @@ SCUS-97229:
   region: "NTSC-U"
   clampModes:
     eeClampMode: 3 # Fixes textbox.
+  gsHWFixes:
+    roundSprite: 1
 SCUS-97230:
   name: "SOCOM - U.S. Navy SEALs (Online)"
   region: "NTSC-U"
@@ -6881,6 +7041,7 @@ SCUS-97472:
   compat: 5
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
   memcardFilters:
     - "SCUS-97472"
     - "SCUS-97113"
@@ -6984,6 +7145,7 @@ SCUS-97490:
   compat: 5
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
   patches:
     0643F90C:
       content: |-
@@ -7033,6 +7195,7 @@ SCUS-97505:
   region: "NTSC-U"
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
 SCUS-97506:
   name: "Gretzky NHL '06 [Demo]"
   region: "NTSC-U"
@@ -7211,6 +7374,7 @@ SCUS-97572:
   region: "NTSC-U"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
 SCUS-97579:
   name: "ATV Off-Road Fury 4 [Demo]"
   region: "NTSC-U"
@@ -7609,6 +7773,8 @@ SLED-50359:
   region: "PAL-E"
   clampModes:
     vuClampMode: 3  # Fixes out of place polys (COP2).
+  gsHWFixes:
+    halfPixelOffset: 1
 SLED-50478:
   name: "WWF Smackdown! - Just Bring It [Demo]"
   region: "PAL-E"
@@ -8566,6 +8732,8 @@ SLES-50358:
   name: "Devil May Cry"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
 SLES-50362:
   name: "Jonny Moseley Mad Trix"
   region: "PAL-E"
@@ -9092,6 +9260,9 @@ SLES-50672:
   name: "Baldur's Gate: Dark Alliance"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLES-50677:
   name: "Shadow Hearts"
   region: "PAL-E"
@@ -10496,6 +10667,8 @@ SLES-51303:
 SLES-51307:
   name: "Wild ARMs 3"
   region: "PAL-E"
+  gsHWFixes:
+    wildArmsHack: 1
 SLES-51308:
   name: "Reel Fishing 3"
   region: "PAL-E"
@@ -10905,6 +11078,8 @@ SLES-51553:
     vuClampMode: 2  # Fixes SPS in item menu.
   gsHWFixes:
     textureInsideRT: 1
+    alignSprite: 1
+    roundSprite: 2
 SLES-51554:
   name: "Cell Damage Overdrive"
   region: "PAL-M5"
@@ -11131,6 +11306,7 @@ SLES-51697:
   compat: 5
   gsHWFixes:
     textureInsideRT: 1
+    halfPixelOffset: 3
 SLES-51698:
   name: "Mobile Light Force 2"
   region: "PAL-M5"
@@ -11790,6 +11966,8 @@ SLES-52005:
   name: "James Bond 007 - Everything or Nothing"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    roundSprite: 1
 SLES-52008:
   name: "NBA Live 2004"
   region: "PAL-M5"
@@ -12072,10 +12250,16 @@ SLES-52187:
   name: "Baldur's Gate: Dark Alliance II"
   region: "PAL-M3"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLES-52188:
   name: "Baldur's Gate: Dark Alliance II"
   region: "PAL-M3"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLES-52190:
   name: "RPM Tuning"
   region: "PAL-M6"
@@ -12115,6 +12299,8 @@ SLES-52230:
 SLES-52237:
   name: ".hack//Infection Part 1"
   region: "PAL-M5"
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SLES-52237"
     - "SLES-52467"
@@ -12319,12 +12505,17 @@ SLES-52322:
   compat: 5
   clampModes:
     eeClampMode: 3  # Characters are visible in-game.
+  gsHWFixes:
+    mergeSprite: 1
 SLES-52323:
   name: "Richard Burns Rally"
   region: "PAL-M5"
 SLES-52325:
   name: "Champions of Norrath - Realms of EverQuest"
   region: "PAL-M3"
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLES-52326:
   name: "Spawn - Armageddon"
   region: "PAL-M5"
@@ -12411,6 +12602,9 @@ SLES-52372:
 SLES-52373:
   name: "Champions of Norrath"
   region: "PAL-E-S"
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLES-52374:
   name: "Fight Night 2004"
   region: "PAL-M3"
@@ -12577,6 +12771,8 @@ SLES-52467:
   name: ".hack//Mutation Part 2"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SLES-52237"
     - "SLES-52467"
@@ -12586,6 +12782,8 @@ SLES-52468:
   name: ".hack//Quarantine Part 4"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SLES-52237"
     - "SLES-52467"
@@ -12595,6 +12793,8 @@ SLES-52469:
   name: ".hack//Outbreak Part 3"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SLES-52237"
     - "SLES-52467"
@@ -13931,10 +14131,15 @@ SLES-53038:
   compat: 5
   roundModes:
     eeRoundMode: 0
+  gsHWFixes:
+    halfPixelOffset: 2
 SLES-53039:
   name: "Champions - Return to Arms" # aka "Champions of Norrath 2"
   region: "PAL-M4"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
   memcardFilters: # Allows import of characters from first game.
     - "SLES-53039"
     - "SLES-52325"
@@ -15938,6 +16143,9 @@ SLES-53974:
   name: "Dragon Quest VIII - Journey of the Cursed King"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 2
+    roundSprite: 2
 SLES-53976:
   name: "Evolution GT"
   region: "PAL-M5"
@@ -16390,6 +16598,8 @@ SLES-54185:
   name: "Dirge of Cerberus - Final Fantasy VII"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
   patches:
     33F7D21A:
       content: |-
@@ -16401,6 +16611,8 @@ SLES-54186:
   region: "PAL-M5"
   roundModes:
     eeRoundMode: 0
+  gsHWFixes:
+    halfPixelOffset: 2
 SLES-54187:
   name: "Real World Golf 2007"
   region: "PAL-M3"
@@ -16520,6 +16732,7 @@ SLES-54239:
   region: "PAL-E"
   gsHWFixes:
     textureInsideRT: 1
+    wildArmsHack: 1
 SLES-54240:
   name: "FIFA '07"
   region: "PAL-E"
@@ -17102,6 +17315,9 @@ SLES-54490:
   name: "God Hand"
   region: "PAL-M5"
   compat: 5
+  gsHWFixes:
+    mergeSprite: 1
+    wildArmsHack: 1
 SLES-54492:
   name: "Need for Speed - Carbon [Collector's Edition]"
   region: "PAL-E"
@@ -17389,28 +17605,43 @@ SLES-54644:
   compat: 5
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SLES-54645:
   name: "Valkyrie Profile 2 - Silmeria"
   region: "PAL-F"
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SLES-54646:
   name: "Valkyrie Profile 2 - Silmeria"
   region: "PAL-G"
   compat: 5
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SLES-54647:
   name: "Valkyrie Profile 2 - Silmeria"
   region: "PAL-I"
   compat: 5
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SLES-54648:
   name: "Valkyrie Profile 2 - Silmeria"
   region: "PAL-S"
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SLES-54653:
   name: "Freak Out - Extreme Freeride"
   region: "PAL-M5"
@@ -18131,6 +18362,8 @@ SLES-54962:
   region: "PAL-E"
   roundModes:
     vuRoundMode: 0  # Crashes without.
+  gsHWFixes:
+    textureInsideRT: 1
 SLES-54963:
   name: "Tony Hawks - Proving Ground"
   region: "PAL-E"
@@ -18148,6 +18381,8 @@ SLES-54971:
 SLES-54972:
   name: "Wild Arms 5"
   region: "PAL-M3"
+  gsHWFixes:
+    wildArmsHack: 1
 SLES-54973:
   name: "Le Avventure di Lupin III: Lupin la Morte, Zenigata l'Amore"
   region: "PAL-I"
@@ -18156,6 +18391,8 @@ SLES-54974:
   region: "PAL-M4"
   roundModes:
     vuRoundMode: 0  # Crashes without.
+  gsHWFixes:
+    textureInsideRT: 1
 SLES-54975:
   name: "George Of The Jungle"
   region: "PAL-E"
@@ -19554,6 +19791,8 @@ SLES-82034:
   region: "PAL-M3"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLES-82034"
     - "SCES-82034"
@@ -19562,6 +19801,8 @@ SLES-82035:
   region: "PAL-M3"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLES-82034"
     - "SCES-82034"
@@ -19736,6 +19977,8 @@ SLKA-25026:
     vuClampMode: 2  # Fixes SPS in item menu.
   gsHWFixes:
     textureInsideRT: 1
+    alignSprite: 1
+    roundSprite: 2
 SLKA-25029:
   name: "MVP Baseball 2003"
   region: "NTSC-K"
@@ -19984,6 +20227,7 @@ SLKA-25200:
   region: "NTSC-K"
   gsHWFixes:
     textureInsideRT: 1
+    halfPixelOffset: 3
 SLKA-25201:
   name: "Armored Core Nexus Evolution DISC1"
   region: "NTSC-K"
@@ -20136,6 +20380,8 @@ SLKA-25265:
   region: "NTSC-K"
   roundModes:
     eeRoundMode: 0
+  gsHWFixes:
+    halfPixelOffset: 2
 SLKA-25266:
   name: "Sangokushi IX [PlayStation 2 - Big Hit Series]"
   region: "NTSC-K"
@@ -20626,6 +20872,8 @@ SLPM-60251:
   region: "NTSC-J"
   roundModes:
     eeRoundMode: 0
+  gsHWFixes:
+    halfPixelOffset: 2
 SLPM-60254:
   name: "Zettai Zetsumei Toshi 2: Itetsuita Kioku-tachi [Trial A]"
   region: "NTSC-J"
@@ -20679,6 +20927,8 @@ SLPM-61009:
 SLPM-61010:
   name: "Devil May Cry [Trial Version]"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
 SLPM-61011:
   name: "Silent Hill 2 (Black Ribbon) [Video Trial]"
   region: "NTSC-J"
@@ -20721,6 +20971,9 @@ SLPM-61133:
   region: "NTSC-J"
   gameFixes:
     - EETimingHack # Fixes bad colours on character select when in Progressive Scan.
+  gsHWFixes:
+    alignSprite: 1
+    wildArmsHack: 1
 SLPM-61135:
   name: "Naruto - Narutimett Hero 3 [Trial Version]"
   region: "NTSC-J"
@@ -20732,6 +20985,7 @@ SLPM-61147:
   gsHWFixes:
     textureInsideRT: 1
     autoFlush: 1
+    halfPixelOffset: 1
 SLPM-62001:
   name: "Drum Mania"
   region: "NTSC-J"
@@ -21869,6 +22123,9 @@ SLPM-62489:
 SLPM-62490:
   name: "Dragon Quest VIII [Premium Disc]"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 2
+    roundSprite: 2
 SLPM-62491:
   name: "RockMan Power Battle Fighters"
   region: "NTSC-J"
@@ -22817,6 +23074,8 @@ SLPM-65022:
 SLPM-65023:
   name: "Devil May Cry [Demo] [BioHazard - Code Veronica - Perfect Version - Bonus Disc]"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
 SLPM-65024:
   name: "BioHazard - 5th Anniversary Package - Nightmare Returns [Disc1of2]"
   region: "NTSC-J"
@@ -22840,6 +23099,8 @@ SLPM-65038:
   name: "Devil May Cry"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
 SLPM-65039:
   name: "Densha de Go! Shinkansen"
   region: "NTSC-J"
@@ -23519,6 +23780,8 @@ SLPM-65249:
     vuClampMode: 2  # Fixes SPS in item menu.
   gsHWFixes:
     textureInsideRT: 1
+    alignSprite: 1
+    roundSprite: 2
 SLPM-65254:
   name: "Galaxy Angel"
   region: "NTSC-J"
@@ -24112,6 +24375,7 @@ SLPM-65449:
   region: "NTSC-J"
   gsHWFixes:
     textureInsideRT: 1
+    halfPixelOffset: 3
 SLPM-65450:
   name: "Tantei Gakuen Q: Kiokan no Satsui [First Limited Edition]"
   region: "NTSC-J"
@@ -25142,6 +25406,7 @@ SLPM-65793:
   region: "NTSC-J"
   gsHWFixes:
     textureInsideRT: 1
+    halfPixelOffset: 3
 SLPM-65794:
   name: "Capcom Fighting Jam"
   region: "NTSC-J"
@@ -25332,6 +25597,9 @@ SLPM-65845:
   name: "Baldur's Gate: Dark Alliance II"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLPM-65846:
   name: "Lord of the Rings, The - Uchitsu Kuni Daisanki"
   region: "NTSC-J"
@@ -25429,6 +25697,8 @@ SLPM-65880:
   compat: 5
   roundModes:
     eeRoundMode: 0
+  gsHWFixes:
+    halfPixelOffset: 2
 SLPM-65881:
   name: "SmackDown vs. Raw - Exciting Professional Wrestling 6"
   region: "NTSC-J"
@@ -25454,6 +25724,9 @@ SLPM-65888:
   name: "Dragon Quest VIII"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 2
+    roundSprite: 2
 SLPM-65889:
   name: "Kazoku Keikaku - Kokoro no Kizuna"
   region: "NTSC-J"
@@ -26294,6 +26567,8 @@ SLPM-66160:
   compat: 5
   roundModes:
     eeRoundMode: 0
+  gsHWFixes:
+    halfPixelOffset: 2
 SLPM-66163:
   name: "Fuuraiki 2"
   region: "NTSC-J"
@@ -26655,6 +26930,8 @@ SLPM-66271:
   name: "Dirge of Cerberus - Final Fantasy VII"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
 SLPM-66272:
   name: "I-O"
   region: "NTSC-J"
@@ -27138,6 +27415,9 @@ SLPM-66419:
   compat: 5
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SLPM-66420:
   name: "Front Mission 4 [Ultimate Hits]"
   region: "NTSC-J"
@@ -27373,6 +27653,9 @@ SLPM-66480:
 SLPM-66481:
   name: "Dragon Quest VIII [Ultimate Hits]"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 2
+    roundSprite: 2
 SLPM-66482:
   name: "Tokimeki Memorial - Girl's Side 2nd Kiss"
   region: "NTSC-J"
@@ -27447,6 +27730,8 @@ SLPM-66501:
 SLPM-66502:
   name: "Devil May Cry [Mega Hits]"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
 SLPM-66503:
   name: "Metal Gear Solid 2 [Mega Hits]"
   region: "NTSC-J"
@@ -27578,6 +27863,9 @@ SLPM-66550:
   name: "God Hand"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    mergeSprite: 1
+    wildArmsHack: 1
 SLPM-66551:
   name: "Appleseed EX"
   region: "NTSC-J"
@@ -27845,6 +28133,8 @@ SLPM-66628:
 SLPM-66629:
   name: "Dirge of Cerberus - Final Fantasy VII International"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
 SLPM-66630:
   name: "Melheaven - Arm Fight Dream [Konami the Best]"
   region: "NTSC-J"
@@ -28377,6 +28667,9 @@ SLPM-66782:
   compat: 5
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SLPM-66783:
   name: "Idol Janshi Suchie-Pai 4 [Limited Edition]"
   region: "NTSC-J"
@@ -28706,6 +28999,8 @@ SLPM-66896:
 SLPM-66897:
   name: "Tales of the Abyss"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 2
 SLPM-66898:
   name: "Spectral Gene [Limited Edition]"
   region: "NTSC-J"
@@ -29045,6 +29340,8 @@ SLPM-67502:
   name: "Devil May Cry"
   region: "NTSC-K"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
 SLPM-67505:
   name: "James Bond 007 - Agent Under Fire"
   region: "NTSC-K"
@@ -29261,6 +29558,8 @@ SLPM-74229:
 SLPM-74230:
   name: "Devil May Cry [PlayStation 2 The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
 SLPM-74231:
   name: "Kessen III [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -29291,11 +29590,16 @@ SLPM-74240:
 SLPM-74241:
   name: "God Hand [PlayStation 2 The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    mergeSprite: 1
+    wildArmsHack: 1
 SLPM-74242:
   name: "Devil May Cry 3 [Special Edition] [PlayStation 2 The Best]"
   region: "NTSC-J"
   roundModes:
     eeRoundMode: 0
+  gsHWFixes:
+    halfPixelOffset: 2
 SLPM-74243:
   name: "True Crime - New York City [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -29477,6 +29781,9 @@ SLPS-20015:
   name: "Tekken Tag Tournament"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    alignSprite: 1
+    texturePreloading: 1
 SLPS-20016:
   name: "Dream Audition"
   region: "NTSC-J"
@@ -30854,6 +31161,8 @@ SLPS-25100:
   name: "Tekken 4"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    alignSprite: 1
 SLPS-25102:
   name: "Project Arms"
   region: "NTSC-J"
@@ -30910,6 +31219,8 @@ SLPS-25120:
 SLPS-25121:
   name: ".hack//Infection Part 1"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SCPS-55029"
     - "SCPS-55042"
@@ -30963,6 +31274,9 @@ SLPS-25139:
   name: "Baldur's Gate: Dark Alliance"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLPS-25141:
   name: "Pac-Man World 2"
   region: "NTSC-J"
@@ -30976,6 +31290,8 @@ SLPS-25142:
 SLPS-25143:
   name: ".hack//Mutation Part 2"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SCPS-55029"
     - "SCPS-55042"
@@ -31027,6 +31343,8 @@ SLPS-25156:
 SLPS-25158:
   name: ".hack//Outbreak Part 3"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SCPS-55029"
     - "SCPS-55042"
@@ -31163,6 +31481,8 @@ SLPS-25201:
 SLPS-25202:
   name: ".hack//Quarantine Part 4"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SCPS-55029"
     - "SCPS-55042"
@@ -31405,6 +31725,9 @@ SLPS-25291:
   name: "Baldur's Gate: Dark Alliance [PCCW The Best]"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLPS-25292:
   name: "D-A - Black"
   region: "NTSC-J"
@@ -31650,6 +31973,8 @@ SLPS-25366:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLPS-29001"
     - "SLPS-29002"
@@ -31662,6 +31987,8 @@ SLPS-25367:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLPS-29001"
     - "SLPS-29002"
@@ -31674,6 +32001,8 @@ SLPS-25368:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters: # Allows import of Xenosaga I, Xenosaga I Reloaded, and Xenosaga Freaks data.
     - "SLPS-29001"
     - "SLPS-29002"
@@ -31686,6 +32015,8 @@ SLPS-25369:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLPS-29001"
     - "SLPS-29002"
@@ -31854,6 +32185,9 @@ SLPS-25418:
   compat: 5
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    alignSprite: 1
+    roundSprite: 1
   patches:
     86089F31:
       content: |-
@@ -32176,6 +32510,8 @@ SLPS-25510:
   compat: 5
   clampModes:
     eeClampMode: 2  # Fixes camera and stops constant coin noises on Pirates Cove.
+  gsHWFixes:
+    alignSprite: 1
 SLPS-25511:
   name: "Rasetsu Alternative"
   region: "NTSC-J"
@@ -32236,6 +32572,8 @@ SLPS-25527:
   name: ".hack//Fragment"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
 SLPS-25528:
   name: "Summon Night EX Thesis - Yoake no Tsubasa"
   region: "NTSC-J"
@@ -32331,6 +32669,8 @@ SLPS-25557:
   region: "NTSC-J"
   gameFixes:
     - EETimingHack # Mitigates bounciness of vertical shaking but better fix with EE cyclerate +1.
+  gsHWFixes:
+    alignSprite: 1
 SLPS-25558:
   name: "NeoGeo Battle Coliseum"
   region: "NTSC-J"
@@ -32395,6 +32735,9 @@ SLPS-25577:
   compat: 5
   gameFixes:
     - EETimingHack # Fixes bad colours on character select when in Progressive Scan.
+  gsHWFixes:
+    alignSprite: 1
+    wildArmsHack: 1
 SLPS-25578:
   name: "K-1 World Grand Prix 2005"
   region: "NTSC-J"
@@ -32428,6 +32771,8 @@ SLPS-25586:
   name: "Tales of the Abyss"
   region: "NTSC-J"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 2
 SLPS-25587:
   name: "Sugar Sugar Rune - Koi mo Oshare mo Pick-Up"
   region: "NTSC-J"
@@ -32555,6 +32900,9 @@ SLPS-25629:
   region: "NTSC-J"
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    alignSprite: 1
+    roundSprite: 1
   memcardFilters:
     - "SCAJ-20173"
     - "SLPS-25629"
@@ -32608,6 +32956,7 @@ SLPS-25640:
   gsHWFixes:
     textureInsideRT: 1
     autoFlush: 1
+    halfPixelOffset: 1
   memcardFilters: # Allows import of Xenosaga II save data.
     - "SLPS-25640"
     - "SLPS-25368"
@@ -32618,6 +32967,7 @@ SLPS-25641:
   gsHWFixes:
     textureInsideRT: 1
     autoFlush: 1
+    halfPixelOffset: 1
   memcardFilters:
     - "SLPS-25640"
     - "SLPS-25368"
@@ -33343,6 +33693,8 @@ SLPS-25840:
   region: "NTSC-J"
   roundModes:
     vuRoundMode: 0  # Crashes without.
+  gsHWFixes:
+    textureInsideRT: 1
 SLPS-25841:
   name: "Tales of Destiny [Director's Cut] [Premium Box]"
   region: "NTSC-J"
@@ -33475,6 +33827,8 @@ SLPS-25890:
   region: "NTSC-J"
   roundModes:
     vuRoundMode: 0  # Crashes without.
+  gsHWFixes:
+    textureInsideRT: 1
 SLPS-25892:
   name: "Nogizaka Haruka no Himitsu - Cosplay Hajimemashita"
   region: "NTSC-J"
@@ -33581,6 +33935,7 @@ SLPS-29001:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
   patches:
     A3D63039:
       content: |-
@@ -33604,6 +33959,7 @@ SLPS-29002:
   compat: 5
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
   patches:
     A3D63039:
       content: |-
@@ -33637,6 +33993,7 @@ SLPS-29005:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
 SLPS-72501:
   name: "Final Fantasy X [Mega Hits]"
   region: "NTSC-J"
@@ -33667,6 +34024,9 @@ SLPS-73103:
 SLPS-73104:
   name: "Tekken Tag Tournament [PlayStation 2 The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    alignSprite: 1
+    texturePreloading: 1
 SLPS-73105:
   name: "Kinnikuman Generations [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -33732,6 +34092,8 @@ SLPS-73208:
 SLPS-73209:
   name: "Tekken 4 [PlayStation 2 The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    alignSprite: 1
 SLPS-73210:
   name: "Katamari Damacy [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -33761,6 +34123,9 @@ SLPS-73218:
   region: "NTSC-J"
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    alignSprite: 1
+    roundSprite: 1
 SLPS-73219:
   name: "Tales of Destiny 2 [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -33780,11 +34145,15 @@ SLPS-73223:
   region: "NTSC-J"
   clampModes:
     eeClampMode: 2  # Fixes camera and stops constant coin noises on Pirates Cove.
+  gsHWFixes:
+    alignSprite: 1
 SLPS-73224:
   name: "Xenosaga Episode II - Jenseits von Gut und Bose [PlayStation 2 The Best] [Disc1of2]"
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLPS-29001"
     - "SLPS-29002"
@@ -33797,6 +34166,8 @@ SLPS-73225:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLPS-29001"
     - "SLPS-29002"
@@ -33954,6 +34325,9 @@ SLPS-73250:
   region: "NTSC-J"
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    alignSprite: 1
+    roundSprite: 1
   memcardFilters:
     - "SCAJ-20173"
     - "SLPS-25629"
@@ -33973,6 +34347,8 @@ SLPS-73251:
 SLPS-73252:
   name: "Tales of the Abyss [PlayStation 2 The Best]"
   region: "NTSC-J"
+  gsHWFixes:
+    halfPixelOffset: 2
 SLPS-73253:
   name: "Rurouni Kenshin - Enjou! Kyoto Rinne [PlayStation 2 The Best]"
   region: "NTSC-J"
@@ -33982,6 +34358,8 @@ SLPS-73254:
 SLPS-73255:
   name: "Fatal Frame [PlayStation 2 the Best - Reprint]"
   region: "NTSC-J"
+  gsHWFixes:
+    alignSprite: 1
 SLPS-73256:
   name: "Fatal Frame II - Crimson Butterfly [PlayStation 2 the Best - Reprint]"
   region: "NTSC-J"
@@ -34099,6 +34477,7 @@ SLPS-73901:
   region: "NTSC-J"
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
   patches:
     A3D63039:
       content: |-
@@ -34120,6 +34499,9 @@ SLUS-20001:
   name: "Tekken Tag Tournament"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    alignSprite: 1
+    texturePreloading: 1
 SLUS-20002:
   name: "Ridge Racer V"
   region: "NTSC-U"
@@ -34218,6 +34600,9 @@ SLUS-20035:
   name: "Baldur's Gate: Dark Alliance"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLUS-20037:
   name: "Run Like Hell - Hunt or Be Hunted"
   region: "NTSC-U"
@@ -34846,6 +35231,8 @@ SLUS-20216:
   name: "Devil May Cry"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
   patches:
     79B8A95F:
       content: |-
@@ -35071,6 +35458,8 @@ SLUS-20267:
   name: ".hack//Infection Part 1"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SLUS-20267"
     - "SLUS-20562"
@@ -35330,6 +35719,8 @@ SLUS-20328:
   name: "Tekken 4"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    alignSprite: 1
 SLUS-20329:
   name: "Pro Race Driver"
   region: "NTSC-U"
@@ -35567,6 +35958,8 @@ SLUS-20388:
   name: "Fatal Frame"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    alignSprite: 1
   patches:
     default:
       content: |-
@@ -35937,6 +36330,7 @@ SLUS-20469:
   compat: 5
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
   patches:
     6D1276AB:
       content: |-
@@ -36336,6 +36730,8 @@ SLUS-20562:
   name: ".hack//Mutation Part 2"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SLUS-20267"
     - "SLUS-20562"
@@ -36345,6 +36741,8 @@ SLUS-20563:
   name: ".hack//Outbreak Part 3"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SLUS-20267"
     - "SLUS-20562"
@@ -36354,6 +36752,8 @@ SLUS-20564:
   name: "dot Hack - Part 4 - Quarantine"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
   memcardFilters:
     - "SLUS-20267"
     - "SLUS-20562"
@@ -36363,6 +36763,9 @@ SLUS-20565:
   name: "Champions of Norrath"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLUS-20566:
   name: "Buffy the Vampire Slayer - Chaos Bleeds"
   region: "NTSC-U"
@@ -36823,6 +37226,9 @@ SLUS-20675:
   name: "Baldur's Gate: Dark Alliance II"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLUS-20676:
   name: "Lowrider"
   region: "NTSC-U"
@@ -36905,6 +37311,8 @@ SLUS-20695:
     vuClampMode: 2  # Fixes SPS in item menu.
   gsHWFixes:
     textureInsideRT: 1
+    alignSprite: 1
+    roundSprite: 2
 SLUS-20696:
   name: "Jimmy Neutron - Boy Genius - Jet Fusion"
   region: "NTSC-U"
@@ -37053,6 +37461,8 @@ SLUS-20732:
   compat: 5
   clampModes:
     eeClampMode: 3  # Characters are visible in-game.
+  gsHWFixes:
+    mergeSprite: 1
 SLUS-20733:
   name: "Castlevania - Lament of Innocence"
   region: "NTSC-U"
@@ -37242,6 +37652,7 @@ SLUS-20772:
   compat: 5
   gsHWFixes:
     textureInsideRT: 1
+    halfPixelOffset: 3
 SLUS-20773:
   name: "Legacy of Kain - Defiance"
   region: "NTSC-U"
@@ -37519,6 +37930,9 @@ SLUS-20851:
   compat: 5
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    alignSprite: 1
+    roundSprite: 1
   patches:
     39B574F0:
       content: |-
@@ -37703,6 +38117,8 @@ SLUS-20892:
   compat: 5
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters: # Allows import of Xenosaga I data.
     - "SLUS-20469"
     - "SLUS-20892"
@@ -37916,6 +38332,8 @@ SLUS-20937:
   name: "Wild ARMs - Alter Code F"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    wildArmsHack: 1
 SLUS-20938:
   name: "Dynasty Warriors 4 - Empires"
   region: "NTSC-U"
@@ -38042,6 +38460,8 @@ SLUS-20964:
   compat: 5
   roundModes:
     eeRoundMode: 0
+  gsHWFixes:
+    halfPixelOffset: 2
 SLUS-20965:
   name: "Tony Hawk's Underground 2"
   region: "NTSC-U"
@@ -38081,6 +38501,9 @@ SLUS-20973:
   name: "Champions - Return to Arms" # aka "Champions of Norrath 2"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLUS-20973"
     - "SLUS-20565"
@@ -38536,6 +38959,8 @@ SLUS-21059:
   compat: 5
   clampModes:
     eeClampMode: 2  # Fixes camera and stops constant coin noises on Pirates Cove.
+  gsHWFixes:
+    alignSprite: 1
 SLUS-21060:
   name: "WWE SmackDown! vs. RAW"
   region: "NTSC-U"
@@ -38836,6 +39261,8 @@ SLUS-21133:
   compat: 5
   gsHWFixes:
     autoFlush: 1
+    halfPixelOffset: 1
+    texturePreloading: 0
   memcardFilters:
     - "SLUS-20469"
     - "SLUS-20892"
@@ -38956,6 +39383,8 @@ SLUS-21160:
   region: "NTSC-U"
   clampModes:
     eeClampMode: 2  # Fixes camera and stops constant coin noises on Pirates Cove.
+  gsHWFixes:
+    alignSprite: 1
 SLUS-21161:
   name: "Fight Night - Round 2"
   region: "NTSC-U"
@@ -39177,6 +39606,9 @@ SLUS-21207:
   name: "Dragon Quest VIII - Journey of the Cursed King"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 2
+    roundSprite: 2
 SLUS-21208:
   name: "Tony Hawk's American Wasteland"
   region: "NTSC-U"
@@ -39189,6 +39621,8 @@ SLUS-21209:
   compat: 5
   gameFixes:
     - EETimingHack # Mitigates bounciness of vertical shaking but better fix with EE cyclerate +1.
+  gsHWFixes:
+    alignSprite: 1
 SLUS-21212:
   name: "Spartan - Total Warrior"
   region: "NTSC-U"
@@ -39216,6 +39650,9 @@ SLUS-21216:
   compat: 5
   gameFixes:
     - EETimingHack # Fixes bad colours on character select when in Progressive Scan.
+  gsHWFixes:
+    alignSprite: 1
+    wildArmsHack: 1
 SLUS-21217:
   name: "Incredibles, The - Rise of the Underminers"
   region: "NTSC-U"
@@ -39595,6 +40032,7 @@ SLUS-21292:
   compat: 5
   gsHWFixes:
     textureInsideRT: 1
+    wildArmsHack: 1
   memcardFilters: # Allows import of Alter Code F clear data.
     - "SLUS-21292"
     - "SLUS-20937"
@@ -39852,6 +40290,9 @@ SLUS-21346:
   compat: 5
   gsHWFixes:
     mipmap: 1
+    halfPixelOffset: 1
+    alignSprite: 1
+    roundSprite: 1
   memcardFilters:
     - "SLUS-21346"
     - "SLUS-20152"
@@ -39941,6 +40382,8 @@ SLUS-21361:
   compat: 5
   roundModes:
     eeRoundMode: 0
+  gsHWFixes:
+    halfPixelOffset: 2
 SLUS-21362:
   name: "Onimusha - Dawn of Dreams [Disc2of2]"
   region: "NTSC-U"
@@ -40082,6 +40525,8 @@ SLUS-21386:
   name: "Tales of the Abyss"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 2
 SLUS-21387:
   name: "Warship Gunner 2"
   region: "NTSC-U"
@@ -40097,6 +40542,7 @@ SLUS-21389:
   gsHWFixes:
     textureInsideRT: 1
     autoFlush: 1
+    halfPixelOffset: 1
   memcardFilters: # Allows import of Xenosaga II save data.
     - "SLUS-21389"
     - "SLUS-20892"
@@ -40216,6 +40662,7 @@ SLUS-21417:
   gsHWFixes:
     textureInsideRT: 1
     autoFlush: 1
+    halfPixelOffset: 1
   memcardFilters:
     - "SLUS-21389"
     - "SLUS-20892"
@@ -40247,6 +40694,8 @@ SLUS-21419:
   name: "Dirge of Cerberus - Final Fantasy VII"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    halfPixelOffset: 1
 SLUS-21420:
   name: "Disney's Chicken Little - Ace in Action"
   region: "NTSC-U"
@@ -40397,6 +40846,9 @@ SLUS-21452:
   compat: 5
   gameFixes:
     - VuAddSubHack
+  gsHWFixes:
+    halfPixelOffset: 1
+    roundSprite: 1
 SLUS-21453:
   name: "Disney's Meet the Robinsons"
   region: "NTSC-U"
@@ -40648,6 +41100,9 @@ SLUS-21503:
   name: "God Hand"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    mergeSprite: 1
+    wildArmsHack: 1
 SLUS-21536:
   name: "Sims 2, The - Pets"
   region: "NTSC-U"
@@ -40994,6 +41449,8 @@ SLUS-21615:
   name: "Wild ARMs 5"
   region: "NTSC-U"
   compat: 5
+  gsHWFixes:
+    wildArmsHack: 1
 SLUS-21616:
   name: "Tony Hawk's Proving Ground"
   region: "NTSC-U"
@@ -41232,6 +41689,8 @@ SLUS-21672:
   compat: 5
   roundModes:
     vuRoundMode: 0  # Crashes without.
+  gsHWFixes:
+    textureInsideRT: 1
 SLUS-21673:
   name: "College Hoops 2K8"
   region: "NTSC-U"
@@ -42427,6 +42886,8 @@ SLUS-28010:
 SLUS-28012:
   name: "Tekken 4 [Trade Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    alignSprite: 1
 SLUS-28013:
   name: "Dual Hearts [Trade Demo]"
   region: "NTSC-U"
@@ -42469,6 +42930,8 @@ SLUS-28031:
 SLUS-28032:
   name: ".hack//Mutation Part 2 [Trade Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    halfPixelOffset: 1
 SLUS-28034:
   name: "Disgaea: Hour of Darkness [Trade Demo]"
   region: "NTSC-U"
@@ -42578,6 +43041,8 @@ SLUS-29008:
 SLUS-29009:
   name: "Devil May Cry [Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    halfPixelOffset: 1
 SLUS-29010:
   name: "Crash Bandicoot - The Wrath of Cortex [Demo]"
   region: "NTSC-U"
@@ -42645,6 +43110,8 @@ SLUS-29033:
 SLUS-29034:
   name: "Tekken 4 [Regular Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    alignSprite: 1
 SLUS-29035:
   name: "Eidos Demo Disc"
   region: "NTSC-U"
@@ -42781,9 +43248,14 @@ SLUS-29086:
 SLUS-29087:
   name: "Square Enix Sampler Disc Vol.1: Drakengard Playable Demo"
   region: "NTSC-U"
+  gsHWFixes:
+    mergeSprite: 1
 SLUS-29088:
   name: "Champions of Norrath - Realms of EverQuest [Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLUS-29089:
   name: "Resident Evil Outbreak [Public Beta 1.0]"
   region: "NTSC-U"
@@ -42860,6 +43332,9 @@ SLUS-29126:
   name: "Champions - Return to Arms [Demo]" # aka "Champions of Norrath 2 [Demo]"
   region: "NTSC-U"
   compat: 4
+  gsHWFixes:
+    fastTextureInvalidation: 1
+    texturePreloading: 0
 SLUS-29127:
   name: "FIFA Soccer 2005 [Demo]" 
   region: "NTSC-U"
@@ -42936,6 +43411,9 @@ SLUS-29156:
 SLUS-29157:
   name: "Dragon Quest VIII - Journey of the Cursed King [Demo]"
   region: "NTSC-U"
+  gsHWFixes:
+    halfPixelOffset: 2
+    roundSprite: 2
 SLUS-29159:
   name: "One Piece - Grand Battle [Demo]"
   region: "NTSC-U"
@@ -43043,6 +43521,8 @@ SLUS-29198:
 SLUS-29199:
   name: ".hack//G.U. Vol. 1//Rebirth"
   region: "NTSC-U"
+  gsHWFixes:
+    halfPixelOffset: 1
 SLUS-29200:
   name: "FIFA Soccer 08 [Demo]"
   region: "NTSC-U"
