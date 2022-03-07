@@ -1314,6 +1314,7 @@ void GSApp::Init()
 	m_default_configuration["CrcHacksExclusions"]                         = "";
 	m_default_configuration["disable_hw_gl_draw"]                         = "0";
 	m_default_configuration["disable_shader_cache"]                       = "0";
+	m_default_configuration["DisableFramebufferFetch"]                    = "0";
 	m_default_configuration["dithering_ps2"]                              = "2";
 	m_default_configuration["dump"]                                       = "0";
 	m_default_configuration["DumpReplaceableTextures"]                    = "0";
