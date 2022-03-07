@@ -56,7 +56,6 @@ namespace ReplaceGL
 
 } // namespace ReplaceGL
 
-#ifdef _WIN32
 namespace Emulate_DSA
 {
 	// Texture entry point
@@ -108,12 +107,6 @@ namespace Emulate_DSA
 	}
 
 	// Misc entry point
-	// (only purpose is to have a consistent API otherwise it is useless)
-	void APIENTRY CreateProgramPipelines(GLsizei n, GLuint* pipelines)
-	{
-		glGenProgramPipelines(n, pipelines);
-	}
-
 	void APIENTRY CreateSamplers(GLsizei n, GLuint* samplers)
 	{
 		glGenSamplers(n, samplers);
@@ -130,12 +123,10 @@ namespace Emulate_DSA
 		glCompressedTextureSubImage2D = CompressedTextureSubImage;
 		glGetTextureImage = GetTexureImage;
 		glTextureParameteri = TextureParameteri;
-
-		glCreateProgramPipelines = CreateProgramPipelines;
+		glGenerateTextureMipmap = GenerateTextureMipmap;
 		glCreateSamplers = CreateSamplers;
 	}
 } // namespace Emulate_DSA
-#endif
 
 namespace GLLoader
 {
@@ -153,8 +144,11 @@ namespace GLLoader
 	bool vendor_id_intel = false;
 	bool mesa_driver = false;
 	bool in_replayer = false;
+	bool buggy_pbo = false;
 
+	bool is_gles = false;
 	bool has_dual_source_blend = false;
+	bool has_clip_control = true;
 	bool found_framebuffer_fetch = false;
 	bool found_geometry_shader = true; // we require GL3.3 so geometry must be supported by default
 	bool found_GL_ARB_clear_texture = false;
@@ -203,7 +197,7 @@ namespace GLLoader
 		return found;
 	}
 
-	bool check_gl_version(int major, int minor)
+	bool check_gl_version()
 	{
 		const char* vendor = (const char*)glGetString(GL_VENDOR);
 		if (strstr(vendor, "Advanced Micro Devices") || strstr(vendor, "ATI Technologies Inc.") || strstr(vendor, "ATI"))
@@ -231,9 +225,9 @@ namespace GLLoader
 		GLint minor_gl = 0;
 		glGetIntegerv(GL_MAJOR_VERSION, &major_gl);
 		glGetIntegerv(GL_MINOR_VERSION, &minor_gl);
-		if ((major_gl < major) || (major_gl == major && minor_gl < minor))
+		if (!GLAD_GL_VERSION_3_3 && !GLAD_GL_ES_VERSION_3_1)
 		{
-			Host::ReportFormattedErrorAsync("GS", "OpenGL %d.%d is not supported. Only OpenGL %d.%d\n was found", major, minor, major_gl, minor_gl);
+			Host::ReportFormattedErrorAsync("GS", "OpenGL is not supported. Only OpenGL %d.%d\n was found", major_gl, minor_gl);
 			return false;
 		}
 
@@ -253,6 +247,7 @@ namespace GLLoader
 
 		// Mandatory for both renderer
 		bool ok = true;
+    if (GLAD_GL_VERSION_3_3)
 		{
 			// GL4.1
 			ok = ok && mandatory("GL_ARB_separate_shader_objects");
@@ -265,12 +260,6 @@ namespace GLLoader
 			ok = ok && mandatory("GL_ARB_buffer_storage");
 		}
 
-		// Only for HW renderer
-		if (GSConfig.UseHardwareRenderer())
-		{
-			ok = ok && mandatory("GL_ARB_copy_image");
-			ok = ok && mandatory("GL_ARB_clip_control");
-		}
 		if (!ok)
 			return false;
 
@@ -279,6 +268,7 @@ namespace GLLoader
 			// Bonus
 			optional("GL_ARB_sparse_texture");
 			optional("GL_ARB_sparse_texture2");
+			has_clip_control = optional("GL_ARB_clip_control");
 			// GL4.0
 			found_GL_ARB_gpu_shader5 = optional("GL_ARB_gpu_shader5");
 			// GL4.2
@@ -328,13 +318,25 @@ namespace GLLoader
 			fprintf_once(stderr, "GL_ARB_texture_barrier is not supported! Blending emulation will not be supported\n");
 		}
 
-#ifdef _WIN32
+		if (is_gles)
+		{
+			has_dual_source_blend = GLAD_GL_EXT_blend_func_extended || GLAD_GL_ARB_blend_func_extended;
+			if (!has_dual_source_blend && !found_framebuffer_fetch)
+			{
+				Host::AddOSDMessage("Both dual source blending and framebuffer fetch are missing, things will be broken.", 10.0f);
+				Console.Error("Missing both dual-source blending and framebuffer fetch");
+			}
+		}
+		else
+		{
+			has_dual_source_blend = true;
+		}
+
 		// Thank you Intel for not providing support of basic features on your IGPUs.
-		if (!GLExtension::Has("GL_ARB_direct_state_access"))
+		if (!GLAD_GL_ARB_direct_state_access)
 		{
 			Emulate_DSA::Init();
 		}
-#endif
 
 		return true;
 	}
@@ -405,7 +407,7 @@ namespace GLLoader
 
 	bool check_gl_requirements()
 	{
-		if (!check_gl_version(3, 3))
+		if (!check_gl_version())
 			return false;
 
 		if (!check_gl_supported_extension())
