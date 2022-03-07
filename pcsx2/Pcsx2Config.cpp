@@ -295,6 +295,7 @@ Pcsx2Config::GSOptions::GSOptions()
 	UseDebugDevice = false;
 	UseBlitSwapChain = false;
 	DisableShaderCache = false;
+	DisableFramebufferFetch = false;
 	ThreadedPresentation = false;
 	OsdShowMessages = true;
 	OsdShowSpeed = false;
@@ -420,6 +421,7 @@ bool Pcsx2Config::GSOptions::RestartOptionsAreEqual(const GSOptions& right) cons
 		   OpEqu(UseDebugDevice) &&
 		   OpEqu(UseBlitSwapChain) &&
 		   OpEqu(DisableShaderCache) &&
+		   OpEqu(DisableFramebufferFetch) &&
 		   OpEqu(ThreadedPresentation) &&
 		   OpEqu(OverrideTextureBarriers) &&
 		   OpEqu(OverrideGeometryShaders);
@@ -500,6 +502,7 @@ void Pcsx2Config::GSOptions::ReloadIniSettings()
 	GSSettingBool(UseDebugDevice);
 	GSSettingBool(UseBlitSwapChain);
 	GSSettingBoolEx(DisableShaderCache, "disable_shader_cache");
+	GSSettingBool(DisableFramebufferFetch);
 	GSSettingBool(ThreadedPresentation);
 	GSSettingBool(OsdShowMessages);
 	GSSettingBool(OsdShowSpeed);
