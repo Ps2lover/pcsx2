@@ -520,6 +520,9 @@ void GSRenderer::VSync(u32 field, bool registers_written)
 		}
 
 		Host::EndPresentFrame();
+
+		if (GSConfig.OsdShowGPU)
+			PerformanceMetrics::OnGPUPresent(Host::GetHostDisplay()->GetAndResetAccumulatedGPUTime());
 	}
 	g_gs_device->RestoreAPIState();
 

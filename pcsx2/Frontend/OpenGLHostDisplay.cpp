@@ -353,6 +353,14 @@ bool OpenGLHostDisplay::BeginPresent(bool frame_skip)
 		return false;
 	}
 
+	if (m_gpu_timing_enabled)
+	{
+		if (m_gl_context->IsGLES())
+			glQueryCounterEXT(m_timestamp_queries[m_current_timestamp_query * 2], GL_TIMESTAMP);
+		else
+			glQueryCounter(m_timestamp_queries[m_current_timestamp_query * 2], GL_TIMESTAMP);
+	}
+
 	glDisable(GL_SCISSOR_TEST);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -374,6 +382,75 @@ void OpenGLHostDisplay::EndPresent()
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 	GL::Program::ResetLastProgram();
 
+	if (m_gpu_timing_enabled)
+	{
+		if (m_gl_context->IsGLES())
+			glQueryCounterEXT(m_timestamp_queries[m_current_timestamp_query * 2 + 1], GL_TIMESTAMP);
+		else
+			glQueryCounter(m_timestamp_queries[m_current_timestamp_query * 2 + 1], GL_TIMESTAMP);
+
+		m_timestamp_queries_set[m_current_timestamp_query] = true;
+		m_current_timestamp_query = (m_current_timestamp_query + 1) % NUM_TIMESTAMP_QUERIES;
+	}
+
 	m_gl_context->SwapBuffers();
+
+	if (m_gpu_timing_enabled && m_timestamp_queries_set[m_current_timestamp_query])
+	{
+		m_timestamp_queries_set[m_current_timestamp_query] = false;
+
+		u64 start = 0, end = 0;
+		if (m_gl_context->IsGLES())
+		{
+			glGetQueryObjectui64vEXT(m_timestamp_queries[m_current_timestamp_query * 2 + 0], GL_QUERY_RESULT_EXT, &start);
+			glGetQueryObjectui64vEXT(m_timestamp_queries[m_current_timestamp_query * 2 + 1], GL_QUERY_RESULT_EXT, &end);
+		}
+		else
+		{
+			glGetQueryObjectui64v(m_timestamp_queries[m_current_timestamp_query * 2 + 0], GL_QUERY_RESULT, &start);
+			glGetQueryObjectui64v(m_timestamp_queries[m_current_timestamp_query * 2 + 1], GL_QUERY_RESULT, &end);
+		}
+
+		// if we didn't write the timestamp at the start of the cmdbuffer (just enabled timing), the first TS will be zero
+		if (start > 0)
+			m_accumulated_gpu_time += static_cast<float>(static_cast<double>(end - start) / 1000000.0);
+	}
+}
+
+void OpenGLHostDisplay::CreateTimestampQueries()
+{
+	glGenQueries(static_cast<u32>(m_timestamp_queries.size()), m_timestamp_queries.data());
+	m_current_timestamp_query = 0;
+	m_timestamp_queries_set = {};
+}
+
+void OpenGLHostDisplay::DestroyTimestampQueries()
+{
+	if (m_timestamp_queries[0] != 0)
+	{
+		glDeleteQueries(static_cast<u32>(m_timestamp_queries.size()), m_timestamp_queries.data());
+		m_timestamp_queries.fill(0);
+	}
+}
+
+void OpenGLHostDisplay::SetGPUTimingEnabled(bool enabled)
+{
+	enabled &= (!m_gl_context->IsGLES() || GLAD_GL_EXT_disjoint_timer_query);
+
+	if (m_gpu_timing_enabled == enabled)
+		return;
+
+	m_gpu_timing_enabled = enabled;
+	if (m_gpu_timing_enabled)
+		CreateTimestampQueries();
+	else
+		DestroyTimestampQueries();
+}
+
+float OpenGLHostDisplay::GetAndResetAccumulatedGPUTime()
+{
+	const float value = m_accumulated_gpu_time;
+	m_accumulated_gpu_time = 0.0f;
+	return value;
 }
 

@@ -431,6 +431,7 @@ struct Pcsx2Config
 					OsdShowSpeed : 1,
 					OsdShowFPS : 1,
 					OsdShowCPU : 1,
+					OsdShowGPU : 1,
 					OsdShowResolution : 1,
 					OsdShowGSStats : 1,
 					OsdShowIndicators : 1;

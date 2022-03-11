@@ -631,6 +631,9 @@ namespace Vulkan
 			vkGetDeviceQueue(m_device, m_present_queue_family_index, 0, &m_present_queue);
 		}
 
+		m_gpu_timing_supported = (queue_family_properties[m_graphics_queue_family_index].timestampValidBits > 0);
+		DevCon.WriteLn("GPU timing is %s", m_gpu_timing_supported ? "supported" : "not supported");
+
 		ProcessDeviceExtensions();
 		return true;
 	}
@@ -836,6 +839,19 @@ namespace Vulkan
 			return false;
 		}
 		Vulkan::Util::SetObjectName(g_vulkan_context->GetDevice(), m_global_descriptor_pool, "Global Descriptor Pool");
+
+		if (m_gpu_timing_supported)
+		{
+			const VkQueryPoolCreateInfo query_create_info = {VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO, nullptr,
+				0, VK_QUERY_TYPE_TIMESTAMP, NUM_COMMAND_BUFFERS * 2, 0};
+			res = vkCreateQueryPool(m_device, &query_create_info, nullptr, &m_timestamp_query_pool);
+			if (res != VK_SUCCESS)
+			{
+				LOG_VULKAN_ERROR(res, "vkCreateQueryPool failed: ");
+				return false;
+			}
+		}
+
 		return true;
 	}
 
@@ -933,6 +949,18 @@ namespace Vulkan
 		vkDeviceWaitIdle(m_device);
 	}
 
+	float Context::GetAndResetAccumulatedGPUTime()
+	{
+		const float time = m_accumulated_gpu_time;
+		m_accumulated_gpu_time = 0.0f;
+		return time;
+	}
+
+	void Context::SetEnableGPUTiming(bool enabled)
+	{
+		m_gpu_timing_enabled = enabled && m_gpu_timing_supported;
+	}
+
 	void Context::WaitForCommandBufferCompletion(u32 index)
 	{
 		// Wait for this command buffer to be completed.
@@ -979,6 +1007,11 @@ namespace Vulkan
 				LOG_VULKAN_ERROR(res, "vkEndCommandBuffer failed: ");
 				pxFailRel("Failed to end command buffer");
 			}
+		}
+
+		if (m_gpu_timing_enabled)
+		{
+			vkCmdWriteTimestamp(m_current_command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_timestamp_query_pool, m_current_frame * 2 + 1);
 		}
 
 		res = vkEndCommandBuffer(resources.command_buffers[1]);
@@ -1158,6 +1191,29 @@ namespace Vulkan
 
 		// using the lower 32 bits of the fence index should be sufficient here, I hope...
 		vmaSetCurrentFrameIndex(m_allocator, static_cast<u32>(m_next_fence_counter));
+
+		if (m_gpu_timing_enabled)
+		{
+			std::array<u64, 2> timestamps;
+			res = vkGetQueryPoolResults(m_device, m_timestamp_query_pool, index * 2, static_cast<u32>(timestamps.size()),
+				sizeof(u64) * timestamps.size(), timestamps.data(), sizeof(u64), VK_QUERY_RESULT_64_BIT);
+			if (res == VK_SUCCESS)
+			{
+				// if we didn't write the timestamp at the start of the cmdbuffer (just enabled timing), the first TS will be zero
+				if (timestamps[0] > 0)
+				{
+					const u64 ns_diff = (timestamps[1] - timestamps[0]) * static_cast<u64>(m_device_properties.limits.timestampPeriod);
+					m_accumulated_gpu_time += static_cast<double>(ns_diff) / 1000000.0;
+				}
+			}
+			else
+			{
+				LOG_VULKAN_ERROR(res, "vkGetQueryPoolResults failed: ");
+			}
+
+			vkCmdResetQueryPool(m_current_command_buffer, m_timestamp_query_pool, index * 2, 2);
+			vkCmdWriteTimestamp(m_current_command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, m_timestamp_query_pool, index * 2);
+		}
 	}
 
 	void Context::ExecuteCommandBuffer(bool wait_for_completion)
@@ -1371,8 +1427,7 @@ namespace Vulkan
 		}
 
 		const VkSubpassDescriptionFlags subpass_flags =
-			(key.color_feedback_loop && g_vulkan_context->GetOptionalExtensions().vk_arm_rasterization_order_attachment_access)
-			? VK_SUBPASS_DESCRIPTION_RASTERIZATION_ORDER_ATTACHMENT_COLOR_ACCESS_BIT_ARM : 0;
+			(key.color_feedback_loop && g_vulkan_context->GetOptionalExtensions().vk_arm_rasterization_order_attachment_access) ? VK_SUBPASS_DESCRIPTION_RASTERIZATION_ORDER_ATTACHMENT_COLOR_ACCESS_BIT_ARM : 0;
 		const VkSubpassDescription subpass = {subpass_flags, VK_PIPELINE_BIND_POINT_GRAPHICS, input_reference_ptr ? 1u : 0u,
 			input_reference_ptr ? input_reference_ptr : nullptr, color_reference_ptr ? 1u : 0u,
 			color_reference_ptr ? color_reference_ptr : nullptr, nullptr, depth_reference_ptr, 0, nullptr};
