@@ -446,8 +446,6 @@ void GSRenderSaveStateLoadScreen(u32 width, u32 height, const u8* pixels, u32 pi
 
 void GSRenderer::VSync(u32 field, bool registers_written)
 {
-	GSPerfMonAutoTimer pmat(&g_perfmon);
-
 	Flush();
 
 	if (s_dump && s_n >= s_saven)
