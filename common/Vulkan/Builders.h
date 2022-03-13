@@ -297,4 +297,21 @@ namespace Vulkan
 		VkBufferViewCreateInfo m_ci;
 	};
 
+	class ComputePipelineBuilder
+	{
+	public:
+		ComputePipelineBuilder();
+
+		void Clear();
+
+		VkPipeline Create(VkDevice device, VkPipelineCache pipeline_cache = VK_NULL_HANDLE, bool clear = true);
+
+		void SetShader(VkShaderModule module, const char* entry_point = "main");
+
+		void SetPipelineLayout(VkPipelineLayout layout);
+
+	private:
+		VkComputePipelineCreateInfo m_ci;
+	};
+
 } // namespace Vulkan

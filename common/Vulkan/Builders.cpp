@@ -881,4 +881,44 @@ namespace Vulkan
 		m_ci.offset = offset;
 		m_ci.range = size;
 	}
+
+	ComputePipelineBuilder::ComputePipelineBuilder()
+	{
+		Clear();
+	}
+
+	void ComputePipelineBuilder::Clear()
+	{
+		m_ci = {};
+		m_ci.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	}
+
+	void ComputePipelineBuilder::SetShader(VkShaderModule module, const char* entry_point /*= "main"*/)
+	{
+		m_ci.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		m_ci.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+		m_ci.stage.module = module;
+		m_ci.stage.pName = entry_point;
+	}
+
+	void ComputePipelineBuilder::SetPipelineLayout(VkPipelineLayout layout)
+	{
+		m_ci.layout = layout;
+	}
+
+	VkPipeline ComputePipelineBuilder::Create(VkDevice device, VkPipelineCache pipeline_cache /*= VK_NULL_HANDLE*/, bool clear /*= true*/)
+	{
+		VkPipeline pipeline;
+		VkResult res = vkCreateComputePipelines(device, pipeline_cache, 1, &m_ci, nullptr, &pipeline);
+		if (res != VK_SUCCESS)
+		{
+			LOG_VULKAN_ERROR(res, "vkCreateComputePipelines() failed: ");
+			return VK_NULL_HANDLE;
+		}
+
+		if (clear)
+			Clear();
+
+		return pipeline;
+	}
 } // namespace Vulkan

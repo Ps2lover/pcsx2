@@ -212,6 +212,9 @@ namespace Vulkan
 		float GetAndResetAccumulatedGPUTime();
 		void SetEnableGPUTiming(bool enabled);
 
+		bool StartSpinning();
+		void StopSpinning();
+
 	private:
 		Context(VkInstance instance, VkPhysicalDevice physical_device);
 
@@ -263,6 +266,9 @@ namespace Vulkan
 		void PresentThread();
 		void StartPresentThread();
 		void StopPresentThread();
+
+		bool CreateSpinResources();
+		void DestroySpinResources();
 
 		struct FrameResources
 		{
@@ -322,6 +328,33 @@ namespace Vulkan
 		};
 
 		QueuedPresent m_queued_present = {};
+
+		struct SpinResources
+		{
+			enum : u32
+			{
+				SPIN_BUFFER_SIZE = 64,
+				PUSH_CONSTANTS_SIZE = 8,
+			};
+
+			VkCommandPool command_pool = VK_NULL_HANDLE;
+			VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+			VkFence fence = VK_NULL_HANDLE;
+			VkBuffer buffer = VK_NULL_HANDLE;
+			VmaAllocation buffer_allocation = VK_NULL_HANDLE;
+			void* buffer_pointer = nullptr;
+			u32 spin_counter = 0;
+			bool needs_fence_wait = false;
+			bool is_active = false;
+
+			VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
+			VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+			VkPipeline pipeline = VK_NULL_HANDLE;
+			VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
+			VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
+		};
+
+		SpinResources m_spin_resources;
 
 		std::map<u32, VkRenderPass> m_render_pass_cache;
 

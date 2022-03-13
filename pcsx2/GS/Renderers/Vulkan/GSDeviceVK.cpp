@@ -469,6 +469,7 @@ bool GSDeviceVK::DownloadTexture(GSTexture* src, const GSVector4i& rect, GSTextu
 	}
 
 	ExecuteCommandBuffer(true);
+	g_vulkan_context->StartSpinning();
 
 	// invalidate cpu cache before reading
 	VkResult res = vmaInvalidateAllocation(g_vulkan_context->GetAllocator(), m_readback_staging_allocation, 0, size);
