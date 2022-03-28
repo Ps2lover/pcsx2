@@ -589,7 +589,8 @@ bool GSDeviceMTL::Create(HostDisplay* display)
 	m_features.broken_point_sampler = [[m_dev.dev name] containsString:@"AMD"];
 	m_features.geometry_shader = false;
 	m_features.image_load_store = m_dev.features.primid;
-	m_features.texture_barrier = true;
+	m_features.one_texture_barrier = true;
+	m_features.full_texture_barriers = true;
 	m_features.provoking_vertex_last = false;
 	m_features.point_expand = true;
 	m_features.line_expand = false;

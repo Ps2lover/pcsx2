@@ -208,7 +208,8 @@ bool GSDevice12::CheckFeatures()
 	const u32 vendorID = g_d3d12_context->GetAdapterVendorID();
 	const bool isAMD = (vendorID == 0x1002 || vendorID == 0x1022);
 
-	m_features.texture_barrier = false;
+	m_features.one_texture_barrier = false;
+	m_features.full_texture_barriers = false;
 	m_features.broken_point_sampler = isAMD;
 	m_features.geometry_shader = true;
 	m_features.image_load_store = true;

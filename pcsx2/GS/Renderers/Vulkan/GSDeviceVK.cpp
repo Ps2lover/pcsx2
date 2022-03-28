@@ -242,10 +242,52 @@ bool GSDeviceVK::CheckFeatures()
 	const VkPhysicalDeviceLimits& limits = g_vulkan_context->GetDeviceLimits();
 	const u32 vendorID = properties.vendorID;
 	const bool isAMD = (vendorID == 0x1002 || vendorID == 0x1022);
+	const bool isIntel = (vendorID == 0x8086);
 	// const bool isNVIDIA = (vendorID == 0x10DE);
 
+	// Test for D32S8 support.
+	{
+		VkFormatProperties props = {};
+		vkGetPhysicalDeviceFormatProperties(g_vulkan_context->GetPhysicalDevice(), VK_FORMAT_D32_SFLOAT_S8_UINT, &props);
+		m_features.stencil_buffer = ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0);
+	}
+
+	switch (GSConfig.OverrideTextureBarriers)
+	{
+		case 0: // Force Disable
+		{
+			m_features.one_texture_barrier = false;
+			m_features.full_texture_barriers = false;
+		}
+		break;
+
+		case 1: // Force Enabled
+		{
+			m_features.one_texture_barrier = true;
+			m_features.full_texture_barriers = true;
+		}
+		break;
+
+		case 2: // Only one barriers.
+		{
+			m_features.one_texture_barrier = true;
+			m_features.full_texture_barriers = false;
+		}
+		break;
+
+		case -1: // Automatic
+		default:
+		{
+			// Prefer full on NVIDIA and AMD, only one on Intel (driver issues).
+			m_features.one_texture_barrier = true;
+			m_features.full_texture_barriers = (!isIntel) || !m_features.stencil_buffer;
+		}
+		break;
+	}
+
 	m_features.framebuffer_fetch = g_vulkan_context->GetOptionalExtensions().vk_arm_rasterization_order_attachment_access && !GSConfig.DisableFramebufferFetch;
-	m_features.texture_barrier = GSConfig.OverrideTextureBarriers != 0;
+	m_features.one_texture_barrier |= m_features.framebuffer_fetch;
+	m_features.full_texture_barriers |= m_features.framebuffer_fetch;
 	m_features.broken_point_sampler = isAMD;
 	m_features.geometry_shader = features.geometryShader && GSConfig.OverrideGeometryShaders != 0;
 	m_features.image_load_store = features.fragmentStoresAndAtomics;
@@ -257,18 +299,11 @@ bool GSDeviceVK::CheckFeatures()
 	if (!m_features.dual_source_blend)
 		Console.Warning("Vulkan driver is missing dual-source blending. This will have an impact on performance.");
 
-	if (!m_features.texture_barrier)
+	if (!m_features.full_texture_barriers)
 		Console.Warning("Texture buffers are disabled. This may break some graphical effects.");
 
-	// Test for D32S8 support.
-	{
-		VkFormatProperties props = {};
-		vkGetPhysicalDeviceFormatProperties(g_vulkan_context->GetPhysicalDevice(), VK_FORMAT_D32_SFLOAT_S8_UINT, &props);
-		m_features.stencil_buffer = ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0);
-	}
-
 	// Fbfetch is useless if we don't have barriers enabled.
-	m_features.framebuffer_fetch &= m_features.texture_barrier;
+	m_features.framebuffer_fetch &= m_features.one_texture_barrier;
 
 	// Use D32F depth instead of D32S8 when we have framebuffer fetch.
 	m_features.stencil_buffer &= !m_features.framebuffer_fetch;
@@ -305,7 +340,7 @@ bool GSDeviceVK::CheckFeatures()
 	m_features.dxt_textures = g_vulkan_context->GetDeviceFeatures().textureCompressionBC;
 	m_features.bptc_textures = g_vulkan_context->GetDeviceFeatures().textureCompressionBC;
 
-	if (!m_features.texture_barrier && !m_features.stencil_buffer)
+	if (!m_features.full_texture_barriers && !m_features.stencil_buffer)
 	{
 		Host::AddKeyedOSDMessage("GSDeviceVK_NoTextureBarrierOrStencilBuffer",
 			"Stencil buffers and texture barriers are both unavailable, this will break some graphical effects.", 10.0f);
@@ -1070,7 +1105,7 @@ static void AddShaderHeader(std::stringstream& ss)
 	ss << "#extension GL_EXT_samplerless_texture_functions : require\n";
 
 	const GSDevice::FeatureSupport features(g_gs_device->Features());
-	if (!features.texture_barrier)
+	if (!features.one_texture_barrier)
 		ss << "#define DISABLE_TEXTURE_BARRIER 1\n";
 	if (!features.dual_source_blend)
 		ss << "#define DISABLE_DUAL_SOURCE 1\n";
@@ -1206,7 +1241,7 @@ bool GSDeviceVK::CreatePipelineLayouts()
 	if ((m_tfx_sampler_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
 		return false;
 	Vulkan::Util::SetObjectName(dev, m_tfx_sampler_ds_layout, "TFX sampler descriptor layout");
-	dslb.AddBinding(0, m_features.texture_barrier ? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT : VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+	dslb.AddBinding(0, m_features.one_texture_barrier ? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT : VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	dslb.AddBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	if ((m_tfx_rt_texture_ds_layout = dslb.Create(dev)) == VK_NULL_HANDLE)
 		return false;
@@ -2566,7 +2601,7 @@ bool GSDeviceVK::ApplyTFXState(bool already_execed)
 			return ApplyTFXState(true);
 		}
 
-		if (m_features.texture_barrier)
+		if (m_features.one_texture_barrier)
 			dsub.AddInputAttachmentDescriptorWrite(ds, 0, m_tfx_textures[NUM_TFX_SAMPLERS]);
 		else
 			dsub.AddImageDescriptorWrite(ds, 0, m_tfx_textures[NUM_TFX_SAMPLERS]);
@@ -2818,7 +2853,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 		case GSHWDrawConfig::DestinationAlphaMode::StencilOne: // setup is done below
 		{
 			// we only need to do the setup here if we don't have barriers, in which case do full DATE.
-			if (!m_features.texture_barrier)
+			if (!m_features.one_texture_barrier)
 			{
 				SetupDATE(config.rt, config.ds, config.datm, config.drawarea);
 				DATE_rp = DATE_RENDER_PASS_STENCIL;
@@ -2909,12 +2944,12 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 		}
 
 		// we're not drawing to the RT, so we can use it as a source
-		if (config.require_one_barrier && !m_features.texture_barrier)
+		if (config.require_one_barrier && !m_features.one_texture_barrier)
 			PSSetShaderResource(2, draw_rt, true);
 
 		draw_rt = hdr_rt;
 	}
-	else if (config.require_one_barrier && !m_features.texture_barrier)
+	else if (config.require_one_barrier && !m_features.one_texture_barrier)
 	{
 		// requires a copy of the RT
 		draw_rt_clone = static_cast<GSTextureVK*>(CreateTexture(rtsize.x, rtsize.y, false, GSTexture::Format::Color, true));
@@ -2972,7 +3007,7 @@ void GSDeviceVK::RenderHW(GSHWDrawConfig& config)
 	OMSetRenderTargets(draw_rt, draw_ds, config.scissor, pipe.feedback_loop);
 	if (pipe.feedback_loop)
 	{
-		pxAssertMsg(m_features.texture_barrier, "Texture barriers enabled");
+		pxAssertMsg(m_features.one_texture_barrier, "Texture barriers enabled");
 		PSSetShaderResource(2, draw_rt, false);
 	}
 
@@ -3134,7 +3169,7 @@ void GSDeviceVK::UpdateHWPipelineSelector(GSHWDrawConfig& config, PipelineSelect
 	pipe.rt = config.rt != nullptr;
 	pipe.ds = config.ds != nullptr;
 	pipe.line_width = config.line_expand;
-	pipe.feedback_loop = m_features.texture_barrier &&
+	pipe.feedback_loop = m_features.one_texture_barrier &&
 										(config.ps.IsFeedbackLoop() || config.require_one_barrier || config.require_full_barrier);
 
 	// enable point size in the vertex shader if we're rendering points regardless of upscaling.
@@ -3158,7 +3193,7 @@ void GSDeviceVK::SendHWDraw(const GSHWDrawConfig& config, GSTextureVK* draw_rt)
 		return;
 	}
 
-	if (m_features.texture_barrier && m_pipeline_selector.ps.IsFeedbackLoop())
+	if (m_features.one_texture_barrier && m_pipeline_selector.ps.IsFeedbackLoop())
 	{
 		if (config.require_full_barrier)
 		{

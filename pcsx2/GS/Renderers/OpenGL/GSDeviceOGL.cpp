@@ -221,12 +221,13 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 	m_features.broken_point_sampler = GLLoader::vendor_id_amd;
 	m_features.geometry_shader = GLLoader::found_geometry_shader;
 	m_features.image_load_store = GLLoader::found_GL_ARB_shader_image_load_store && GLLoader::found_GL_ARB_clear_texture;
-	m_features.texture_barrier = GSConfig.OverrideTextureBarriers != 0 || GLLoader::found_framebuffer_fetch;
+	m_features.one_texture_barrier = GSConfig.OverrideTextureBarriers != 0;
+	m_features.full_texture_barriers = (GSConfig.OverrideTextureBarriers < 0 || GSConfig.OverrideTextureBarriers == 1);
 	m_features.provoking_vertex_last = true;
 	m_features.dxt_textures = GL_EXT_texture_compression_s3tc;
 	m_features.bptc_textures = GL_VERSION_4_2 || GL_ARB_texture_compression_bptc || GL_EXT_texture_compression_bptc;
 	m_features.prefer_new_textures = GLLoader::is_gles;
-	m_features.framebuffer_fetch = GLLoader::found_framebuffer_fetch;
+	m_features.framebuffer_fetch = GLLoader::found_framebuffer_fetch && m_features.full_texture_barriers;
 	m_features.dual_source_blend = GLLoader::has_dual_source_blend && !GSConfig.DisableDualSourceBlend;
 	m_features.clip_control = GLLoader::has_clip_control;
 	m_features.stencil_buffer = true;
@@ -1731,7 +1732,7 @@ void GSDeviceOGL::OMAttachDs(GSTextureOGL* ds)
 	{
 		GLState::ds = id;
 
-		const GLenum target = GLLoader::found_framebuffer_fetch ? GL_DEPTH_ATTACHMENT : GL_DEPTH_STENCIL_ATTACHMENT;
+		const GLenum target = m_features.framebuffer_fetch ? GL_DEPTH_ATTACHMENT : GL_DEPTH_STENCIL_ATTACHMENT;
 		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, target, GL_TEXTURE_2D, id, 0);
 	}
 }
