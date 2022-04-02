@@ -50,6 +50,7 @@ namespace EmuFolders
 	std::string Covers;
 	std::string GameSettings;
 	std::string Textures;
+	std::string InputProfiles;
 } // namespace EmuFolders
 
 void TraceLogFilters::LoadSave(SettingsWrapper& wrap)
@@ -1232,6 +1233,7 @@ void EmuFolders::SetDefaults()
 	GameSettings = Path::Combine(DataRoot, "gamesettings");
 	Cache = Path::Combine(DataRoot, "cache");
 	Textures = Path::Combine(DataRoot, "textures");
+	InputProfiles = Path::Combine(DataRoot, "inputprofiles");
 }
 
 static std::string LoadPathFromSettings(SettingsInterface& si, const std::string& root, const char* name, const char* def)
@@ -1256,6 +1258,7 @@ void EmuFolders::LoadConfig(SettingsInterface& si)
 	GameSettings = LoadPathFromSettings(si, DataRoot, "GameSettings", "gamesettings");
 	Cache = LoadPathFromSettings(si, DataRoot, "Cache", "cache");
 	Textures = LoadPathFromSettings(si, DataRoot, "Textures", "textures");
+	InputProfiles = LoadPathFromSettings(si, DataRoot, "InputProfiles", "inputprofiles");
 
 	Console.WriteLn("BIOS Directory: %s", Bios.c_str());
 	Console.WriteLn("Snapshots Directory: %s", Snapshots.c_str());
@@ -1269,6 +1272,7 @@ void EmuFolders::LoadConfig(SettingsInterface& si)
 	Console.WriteLn("Game Settings Directory: %s", GameSettings.c_str());
 	Console.WriteLn("Cache Directory: %s", Cache.c_str());
 	Console.WriteLn("Textures Directory: %s", Textures.c_str());
+	Console.WriteLn("Input Profile Directory: %s", InputProfiles.c_str());
 }
 
 void EmuFolders::Save(SettingsInterface& si)
@@ -1284,6 +1288,7 @@ void EmuFolders::Save(SettingsInterface& si)
 	si.SetStringValue("Folders", "CheatsNI", Path::MakeRelative(CheatsNI, DataRoot).c_str());
 	si.SetStringValue("Folders", "Cache", Path::MakeRelative(Cache, DataRoot).c_str());
 	si.SetStringValue("Folders", "Textures", Path::MakeRelative(Textures, DataRoot).c_str());
+	si.SetStringValue("Folders", "InputProfiles", Path::MakeRelative(InputProfiles, DataRoot).c_str());
 }
 
 bool EmuFolders::EnsureFoldersExist()
@@ -1301,5 +1306,6 @@ bool EmuFolders::EnsureFoldersExist()
 	result = FileSystem::CreateDirectoryPath(GameSettings.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(Cache.c_str(), false) && result;
 	result = FileSystem::CreateDirectoryPath(Textures.c_str(), false) && result;
+	result = FileSystem::CreateDirectoryPath(InputProfiles.c_str(), false) && result;
 	return result;
 }

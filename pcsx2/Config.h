@@ -1044,6 +1044,7 @@ namespace EmuFolders
 	extern std::string Covers;
 	extern std::string GameSettings;
 	extern std::string Textures;
+	extern std::string InputProfiles;
 
 	// Assumes that AppRoot and DataRoot have been initialized.
 	void SetDefaults();
