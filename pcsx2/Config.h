@@ -1046,6 +1046,7 @@ namespace EmuFolders
 	extern wxDirName Covers;
 	extern wxDirName GameSettings;
 	extern wxDirName Textures;
+	extern wxDirName InputProfiles;
 
 	// Assumes that AppRoot and DataRoot have been initialized.
 	void SetDefaults();

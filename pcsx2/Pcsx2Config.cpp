@@ -49,6 +49,7 @@ namespace EmuFolders
 	wxDirName Covers;
 	wxDirName GameSettings;
 	wxDirName Textures;
+	wxDirName InputProfiles;
 } // namespace EmuFolders
 
 void TraceLogFilters::LoadSave(SettingsWrapper& wrap)
@@ -1277,6 +1278,7 @@ void EmuFolders::LoadConfig(SettingsInterface& si)
 	GameSettings = LoadPathFromSettings(si, DataRoot, "GameSettings", "gamesettings");
 	Cache = LoadPathFromSettings(si, DataRoot, "Cache", "cache");
 	Textures = LoadPathFromSettings(si, DataRoot, "Textures", "textures");
+	InputProfiles = LoadPathFromSettings(si, DataRoot, "InputProfiles", "inputprofiles");
 
 	Console.WriteLn("BIOS Directory: %s", Bios.ToString().c_str().AsChar());
 	Console.WriteLn("Snapshots Directory: %s", Snapshots.ToString().c_str().AsChar());
@@ -1289,6 +1291,7 @@ void EmuFolders::LoadConfig(SettingsInterface& si)
 	Console.WriteLn("Game Settings Directory: %s", GameSettings.ToString().c_str().AsChar());
 	Console.WriteLn("Cache Directory: %s", Cache.ToString().c_str().AsChar());
 	Console.WriteLn("Textures Directory: %s", Textures.ToString().c_str().AsChar());
+	Console.WriteLn("Input Profile Directory: %s", InputProfiles.ToString().c_str().AsChar());
 }
 
 void EmuFolders::Save(SettingsInterface& si)
@@ -1304,6 +1307,7 @@ void EmuFolders::Save(SettingsInterface& si)
 	si.SetStringValue("Folders", "CheatsWS", wxDirName::MakeAutoRelativeTo(CheatsWS, datarel).c_str());
 	si.SetStringValue("Folders", "Cache", wxDirName::MakeAutoRelativeTo(Cache, datarel).c_str());
 	si.SetStringValue("Folders", "Textures", wxDirName::MakeAutoRelativeTo(Textures, datarel).c_str());
+	si.SetStringValue("Folders", "InputProfiles", wxDirName::MakeAutoRelativeTo(InputProfiles, datarel).c_str());
 }
 
 bool EmuFolders::EnsureFoldersExist()
@@ -1320,5 +1324,6 @@ bool EmuFolders::EnsureFoldersExist()
 	result = GameSettings.Mkdir() && result;
 	result = Cache.Mkdir() && result;
 	result = Textures.Mkdir() && result;
+	result = InputProfiles.Mkdir() && result;
 	return result;
 }
