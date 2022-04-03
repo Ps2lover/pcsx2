@@ -297,6 +297,7 @@ static const char* s_gs_hw_fix_names[] = {
 	"roundSprite",
 	"texturePreloading",
 	"deinterlace",
+	"textureBarriers",
 };
 static_assert(std::size(s_gs_hw_fix_names) == static_cast<u32>(GameDatabaseSchema::GSHWFixId::Count), "HW fix name lookup is correct size");
 
@@ -323,6 +324,7 @@ bool GameDatabaseSchema::isUserHackHWFix(GSHWFixId id)
 		case GSHWFixId::Deinterlace:
 		case GSHWFixId::Mipmap:
 		case GSHWFixId::TexturePreloading:
+		case GSHWFixId::TextureBarriers:
 		case GSHWFixId::ConservativeFramebuffer:
 		case GSHWFixId::PointListPalette:
 			return false;
@@ -563,6 +565,7 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 			break;
 
 			case GSHWFixId::Deinterlace:
+			{
 				if (value >= 0 && value <= static_cast<int>(GSInterlaceMode::Automatic))
 				{
 					if (config.InterlaceMode == GSInterlaceMode::Automatic)
@@ -570,6 +573,14 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 					else
 						Console.Warning("[GameDB] Game requires different deinterlace mode but it has been overridden by user setting.");
 				}
+			}
+			break;
+
+			case GSHWFixId::TextureBarriers:
+			{
+				if (value >= 0 && value <= 2 && config.OverrideTextureBarriers < 0)
+					config.OverrideTextureBarriers = value;
+			}
 			break;
 
 			default:
