@@ -9,7 +9,7 @@ in vec4 PSin_c;
 uniform vec2 ZrH;
 uniform float hH;
 
-layout(location = 0) out vec4 SV_Target0;
+LAYOUT_LOCATION(0) out vec4 SV_Target0;
 
 // TODO ensure that clip (discard) is < 0 and not <= 0 ???
 void ps_main0()

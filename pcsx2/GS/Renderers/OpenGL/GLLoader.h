@@ -37,9 +37,12 @@ namespace GLLoader
   extern bool is_gles;
 	extern bool has_clip_control;
 	extern bool has_dual_source_blend;
+	extern bool has_binding_layout;
+	extern bool has_enhanced_layouts;
 	extern bool found_framebuffer_fetch;
 	extern bool found_geometry_shader;
 	extern bool found_texture_barrier;
+	extern bool found_texture_storage;
 	extern bool found_GL_ARB_gpu_shader5;
 	extern bool found_GL_ARB_shader_image_load_store;
 	extern bool found_GL_ARB_clear_texture;

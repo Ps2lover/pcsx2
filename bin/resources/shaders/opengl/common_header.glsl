@@ -1,5 +1,23 @@
 //#version 420 // Keep it for editor detection
 
+#if HAS_BINDING_LAYOUT
+#define LAYOUT_BINDING(x) layout(binding = x)
+#define LAYOUT_BINDING_FORMAT(format, x) layout(format, binding = x)
+#define LAYOUT_LOCATION(x) layout(location = x)
+#define LAYOUT_LOCATION_INDEXED(x, y) layout(location = x, index = y)
+#else
+#define LAYOUT_BINDING(x)
+#define LAYOUT_BINDING_FORMAT(format, x) layout(format)
+#define LAYOUT_LOCATION(x)
+#define LAYOUT_LOCATION_INDEXED(x, y)
+#endif
+
+#if HAS_ENHANCED_LAYOUTS
+#define INOUT_LOCATION(x) layout(location = x)
+#else
+#define INOUT_LOCATION(x)
+#endif
+
 //////////////////////////////////////////////////////////////////////
 // Common Interface Definition
 //////////////////////////////////////////////////////////////////////
@@ -49,7 +67,7 @@ out gl_PerVertex {
 // even if only one was updated.
 
 #if defined(VERTEX_SHADER) || defined(GEOMETRY_SHADER)
-layout(std140, binding = 1) uniform cb20
+LAYOUT_BINDING_FORMAT(std140, 1) uniform cb20
 {
     vec2  VertexScale;
     vec2  VertexOffset;
@@ -64,7 +82,7 @@ layout(std140, binding = 1) uniform cb20
 #endif
 
 #if defined(VERTEX_SHADER) || defined(FRAGMENT_SHADER)
-layout(std140, binding = 0) uniform cb21
+LAYOUT_BINDING_FORMAT(std140, 0) uniform cb21
 {
     vec3 FogColor;
     float AREF;
@@ -102,6 +120,6 @@ layout(std140, binding = 0) uniform cb21
 //////////////////////////////////////////////////////////////////////
 #ifdef FRAGMENT_SHADER
 
-layout(binding = 0) uniform sampler2D TextureSampler;
+LAYOUT_BINDING(0) uniform sampler2D TextureSampler;
 
 #endif

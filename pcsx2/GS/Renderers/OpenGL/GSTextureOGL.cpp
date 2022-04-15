@@ -52,12 +52,16 @@ namespace PboPool
 
 		BindPbo();
 
-		glObjectLabel(GL_BUFFER, m_buffer, -1, "PBO");
+		if (glObjectLabel)
+			glObjectLabel(GL_BUFFER, m_buffer, -1, "PBO");
 
-    if (!GLAD_GL_ARB_buffer_storage && GLAD_GL_EXT_buffer_storage)
-      glBufferStorageEXT(GL_PIXEL_UNPACK_BUFFER, m_pbo_size, NULL, create_flags);
-    else
-      glBufferStorage(GL_PIXEL_UNPACK_BUFFER, m_pbo_size, NULL, create_flags);
+		if (!GLAD_GL_ARB_buffer_storage && GLAD_GL_EXT_buffer_storage)
+			glBufferStorageEXT(GL_PIXEL_UNPACK_BUFFER, m_pbo_size, NULL, create_flags);
+		else if (GLAD_GL_ARB_buffer_storage)
+			glBufferStorage(GL_PIXEL_UNPACK_BUFFER, m_pbo_size, NULL, create_flags);
+		else
+			glBufferData(GL_PIXEL_UNPACK_BUFFER, m_pbo_size, NULL, GL_STREAM_DRAW);
+
 		m_map = (char*)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, m_pbo_size, map_flags);
 		m_offset = 0;
 
@@ -379,7 +383,23 @@ GSTextureOGL::GSTextureOGL(Type type, int width, int height, int levels, Format 
 		throw std::bad_alloc();
 	}
 
-	glTextureStorage2D(m_texture_id, m_mipmap_levels, gl_fmt, m_size.x, m_size.y);
+	if (GLLoader::found_texture_storage)
+	{
+		glTextureStorage2D(m_texture_id, m_mipmap_levels, gl_fmt, m_size.x, m_size.y);
+	}
+	else
+	{
+		// if we didn't have DSA, we're not going to have texture storage either, so put the fallback here
+		glActiveTexture(GL_TEXTURE0 + 7);
+		glBindTexture(GL_TEXTURE_2D, m_texture_id);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, levels - 1);
+		for (GLsizei level = 0; level < levels; level++)
+		{
+			glTexImage2D(GL_TEXTURE_2D, level, gl_fmt,
+				std::max<GLsizei>(1, width >> level), std::max<GLsizei>(1, height >> level),
+				0, m_int_format, m_int_type, nullptr);
+		}
+	}
 }
 
 GSTextureOGL::~GSTextureOGL()

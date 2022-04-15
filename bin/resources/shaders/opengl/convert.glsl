@@ -3,9 +3,9 @@
 
 #ifdef VERTEX_SHADER
 
-layout(location = 0) in vec2 POSITION;
-layout(location = 1) in vec2 TEXCOORD0;
-layout(location = 7) in vec4 COLOR;
+LAYOUT_LOCATION(0) in vec2 POSITION;
+LAYOUT_LOCATION(1) in vec2 TEXCOORD0;
+LAYOUT_LOCATION(7) in vec4 COLOR;
 
 // FIXME set the interpolation (don't know what dx do)
 // flat means that there is no interpolation. The value given to the fragment shader is based on the provoking vertex conventions.
@@ -37,9 +37,9 @@ in vec4 PSin_c;
 
 // Give a different name so I remember there is a special case!
 #if defined(ps_convert_rgba8_16bits) || defined(ps_convert_float32_32bits)
-layout(location = 0) out uint SV_Target1;
+LAYOUT_LOCATION(0) out uint SV_Target1;
 #else
-layout(location = 0) out vec4 SV_Target0;
+LAYOUT_LOCATION(0) out vec4 SV_Target0;
 #endif
 
 vec4 sample_c()

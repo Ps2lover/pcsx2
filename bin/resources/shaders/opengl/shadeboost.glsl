@@ -17,7 +17,7 @@ in vec4 PSin_p;
 in vec2 PSin_t;
 in vec4 PSin_c;
 
-layout(location = 0) out vec4 SV_Target0;
+LAYOUT_LOCATION(0) out vec4 SV_Target0;
 
 // For all settings: 1.0 = 100% 0.5=50% 1.5 = 150%
 vec4 ContrastSaturationBrightness(vec4 color)

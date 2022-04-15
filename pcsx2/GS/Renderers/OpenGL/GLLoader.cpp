@@ -116,9 +116,12 @@ namespace GLLoader
 	bool is_gles = false;
 	bool has_dual_source_blend = false;
 	bool has_clip_control = true;
+	bool has_binding_layout = false;
+	bool has_enhanced_layouts = false;
 	bool found_framebuffer_fetch = false;
 	bool found_geometry_shader = true; // we require GL3.3 so geometry must be supported by default
 	bool found_texture_barrier = false;
+	bool found_texture_storage = false;
 	bool found_GL_ARB_clear_texture = false;
 	// DX11 GPU
 	bool found_GL_ARB_gpu_shader5 = false;             // Require IvyBridge
@@ -169,19 +172,13 @@ namespace GLLoader
 		mesa_driver = !vendor_id_nvidia && !vendor_id_amd;
 #endif
 
-		if (GSConfig.OverrideGeometryShaders != -1)
-		{
-			found_geometry_shader = GSConfig.OverrideGeometryShaders != 0 &&
-									(GLAD_GL_VERSION_3_2 || GL_ARB_geometry_shader4 || GSConfig.OverrideGeometryShaders == 1);
-			Console.Warning("Overriding geometry shaders detection");
-		}
-
-		GLint major_gl = 0;
-		GLint minor_gl = 0;
-		glGetIntegerv(GL_MAJOR_VERSION, &major_gl);
-		glGetIntegerv(GL_MINOR_VERSION, &minor_gl);
 		if (!GLAD_GL_VERSION_3_3 && !GLAD_GL_ES_VERSION_3_1)
 		{
+			GLint major_gl = 0;
+			GLint minor_gl = 0;
+			glGetIntegerv(GL_MAJOR_VERSION, &major_gl);
+			glGetIntegerv(GL_MINOR_VERSION, &minor_gl);
+
 			Host::ReportFormattedErrorAsync("GS", "OpenGL is not supported. Only OpenGL %d.%d\n was found", major_gl, minor_gl);
 			return false;
 		}
@@ -191,17 +188,13 @@ namespace GLLoader
 
 	bool check_gl_supported_extension()
 	{
-		// Mandatory for both renderer
-		bool ok = true;
-
-		ok = ok && mandatory("GL_ARB_shading_language_420pack", GLAD_GL_ARB_shading_language_420pack, GLAD_GL_VERSION_4_2);
-		ok = ok && mandatory("GL_ARB_texture_storage", GLAD_GL_ARB_texture_storage, GLAD_GL_VERSION_4_2);
-
-		if (!ok)
-			return false;
-
 		// Extra
 		{
+			has_binding_layout = optional("GL_ARB_shading_language_420pack", GLAD_GL_ARB_shading_language_420pack, GLAD_GL_VERSION_4_2 | GLAD_GL_ES_VERSION_3_1) &&
+				optional("GL_ARB_explicit_attrib_location", GLAD_GL_ARB_explicit_attrib_location, GLAD_GL_VERSION_4_3 | GLAD_GL_ES_VERSION_3_1);
+			has_enhanced_layouts = optional("GL_ARB_enhanced_layouts", GLAD_GL_ARB_enhanced_layouts, GLAD_GL_VERSION_4_2 | GLAD_GL_ES_VERSION_3_2);
+			found_texture_storage = optional("GL_ARB_texture_storage", GLAD_GL_ARB_texture_storage, GLAD_GL_VERSION_4_2 | GLAD_GL_ES_VERSION_3_0);
+
 			// Bonus
 			optional("GL_ARB_sparse_texture", GLAD_GL_ARB_sparse_texture, 0);
 			optional("GL_ARB_sparse_texture2", GLAD_GL_ARB_sparse_texture2, 0);
@@ -217,6 +210,16 @@ namespace GLLoader
 			// Mandatory for the advance HW renderer effect. Unfortunately Mesa LLVMPIPE/SWR renderers doesn't support this extension.
 			// Rendering might be corrupted but it could be good enough for test/virtual machine.
 			found_texture_barrier = optional("GL_ARB_texture_barrier", GLAD_GL_ARB_texture_barrier, GLAD_GL_VERSION_4_5);
+
+			found_geometry_shader = optional("GL_ARB_geometry_shader4", GLAD_GL_ARB_geometry_shader4 || GLAD_GL_OES_geometry_shader, GLAD_GL_VERSION_3_2 || GLAD_GL_ES_VERSION_3_2);
+			if (GSConfig.OverrideGeometryShaders >= 0)
+			{
+				if (GSConfig.OverrideGeometryShaders != 1)
+				{
+					Console.Warning("Geometry shaders were found but disabled. This will reduce performance.");
+					found_geometry_shader = false;
+				}
+			}
 
 			has_dual_source_blend = GLAD_GL_VERSION_3_2 || GLAD_GL_ARB_blend_func_extended;
 			found_framebuffer_fetch = GLAD_GL_EXT_shader_framebuffer_fetch || GLAD_GL_ARM_shader_framebuffer_fetch;
@@ -257,10 +260,36 @@ namespace GLLoader
 				Host::AddOSDMessage("Both dual source blending and framebuffer fetch are missing, things will be broken.", 10.0f);
 				Console.Error("Missing both dual-source blending and framebuffer fetch");
 			}
+
+			// For GLES3.1, we **need** GL_OES_draw_elements_base_vertex.
+			if (!GLAD_GL_ES_VERSION_3_2)
+			{
+				if (!GLAD_GL_OES_draw_elements_base_vertex)
+				{
+					Host::ReportErrorAsync("GS", "OpenGL ES version 3.2 or GL_OES_draw_elements_base_vertex is required.");
+					return false;
+				}
+				if (!GLAD_GL_OES_shader_io_blocks)
+				{
+					Host::ReportErrorAsync("GS", "OpenGL ES version 3.2 or GLAD_GL_OES_shader_io_blocks is required.");
+					return false;
+				}
+
+				// Just cheat and replace the function pointer, the signature is the same.
+				glDrawElementsBaseVertex = glDrawElementsBaseVertexOES;
+				glDrawRangeElementsBaseVertex = glDrawRangeElementsBaseVertexOES;
+				glDrawElementsInstancedBaseVertex = glDrawElementsInstancedBaseVertexOES;
+			}
 		}
 		else
 		{
 			has_dual_source_blend = true;
+#ifdef __APPLE__
+			// No buffer storage on Macs, this won't go down well.
+			buggy_pbo = true;
+#else
+			buggy_pbo = false;
+#endif
 		}
 
 		// Thank you Intel for not providing support of basic features on your IGPUs.

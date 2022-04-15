@@ -24,10 +24,7 @@
 
 #ifdef FRAGMENT_SHADER
 
-#if !defined(BROKEN_DRIVER) && (pGL_ES || defined(GL_ARB_enhanced_layouts) && GL_ARB_enhanced_layouts)
-layout(location = 0)
-#endif
-in SHADER
+INOUT_LOCATION(0) in SHADER
 {
     vec4 t_float;
     vec4 t_int;
@@ -59,17 +56,17 @@ in SHADER
 #if !PS_NO_COLOR
 #if !defined(DISABLE_DUAL_SOURCE) && !PS_NO_COLOR1
   // Same buffer but 2 colors for dual source blending
-  layout(location = 0, index = 0) TARGET_0_QUALIFIER vec4 SV_Target0;
-  layout(location = 0, index = 1) out vec4 SV_Target1;
+  LAYOUT_LOCATION_INDEXED(0, 0) TARGET_0_QUALIFIER vec4 SV_Target0;
+  LAYOUT_LOCATION_INDEXED(0, 1) out vec4 SV_Target1;
 #else
-  layout(location = 0) TARGET_0_QUALIFIER vec4 SV_Target0;
+  LAYOUT_LOCATION(0) TARGET_0_QUALIFIER vec4 SV_Target0;
 #endif
 #endif
 
-layout(binding = 1) uniform sampler2D PaletteSampler;
+LAYOUT_BINDING(1) uniform sampler2D PaletteSampler;
 
 #if !HAS_FRAMEBUFFER_FETCH
-layout(binding = 2) uniform sampler2D RtSampler; // note 2 already use by the image below
+LAYOUT_BINDING(2) uniform sampler2D RtSampler; // note 2 already use by the image below
 #endif
 
 #ifndef DISABLE_GL42_image

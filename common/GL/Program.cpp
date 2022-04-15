@@ -627,7 +627,8 @@ namespace GL
 			return;
 
 #ifdef _DEBUG
-		glObjectLabel(GL_PROGRAM, m_program_id, name.length(), name.data());
+		if (glObjectLabel)
+			glObjectLabel(GL_PROGRAM, m_program_id, name.length(), name.data());
 #endif
 	}
 

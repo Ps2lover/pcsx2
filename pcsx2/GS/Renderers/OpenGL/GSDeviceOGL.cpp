@@ -47,6 +47,15 @@ int   GSDeviceOGL::m_shader_inst = 0;
 int   GSDeviceOGL::m_shader_reg  = 0;
 FILE* GSDeviceOGL::m_debug_gl_file = NULL;
 
+__fi static void WriteToStreamBuffer(GL::StreamBuffer* sb, u32 index, u32 align, const void* data, u32 size)
+{
+	const auto res = sb->Map(align, size);
+	std::memcpy(res.pointer, data, size);
+	sb->Unmap(size);
+
+	glBindBufferRange(GL_UNIFORM_BUFFER, index, sb->GetGLBufferId(), res.buffer_offset, size);
+}
+
 GSDeviceOGL::GSDeviceOGL()
 	: m_fbo(0)
 	, m_fbo_read(0)
@@ -221,8 +230,8 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 	m_features.broken_point_sampler = GLLoader::vendor_id_amd;
 	m_features.geometry_shader = GLLoader::found_geometry_shader;
 	m_features.image_load_store = GLLoader::found_GL_ARB_shader_image_load_store && GLLoader::found_GL_ARB_clear_texture;
-	m_features.one_texture_barrier = (GLLoader::found_texture_barrier && GLLoader::found_framebuffer_fetch) && GSConfig.OverrideTextureBarriers != 0;
-	m_features.full_texture_barriers = (GLLoader::found_texture_barrier && GLLoader::found_framebuffer_fetch) && (GSConfig.OverrideTextureBarriers < 0 || GSConfig.OverrideTextureBarriers == 1);
+	m_features.one_texture_barrier = (GLLoader::found_texture_barrier || GLLoader::found_framebuffer_fetch) && GSConfig.OverrideTextureBarriers != 0;
+	m_features.full_texture_barriers = (GLLoader::found_texture_barrier || GLLoader::found_framebuffer_fetch) && (GSConfig.OverrideTextureBarriers < 0 || GSConfig.OverrideTextureBarriers == 1);
 	m_features.provoking_vertex_last = true;
 	m_features.dxt_textures = GL_EXT_texture_compression_s3tc;
 	m_features.bptc_textures = GL_VERSION_4_2 || GL_ARB_texture_compression_bptc || GL_EXT_texture_compression_bptc;
@@ -317,9 +326,6 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 	{
 		GL_PUSH("GSDeviceOGL::Vertex Buffer");
 
-		glGenVertexArrays(1, &m_vertex_array_object);
-		glBindVertexArray(m_vertex_array_object);
-
 		m_vertex_stream_buffer = GL::StreamBuffer::Create(GL_ARRAY_BUFFER, VERTEX_BUFFER_SIZE);
 		m_index_stream_buffer = GL::StreamBuffer::Create(GL_ELEMENT_ARRAY_BUFFER, INDEX_BUFFER_SIZE);
 		m_vertex_uniform_stream_buffer = GL::StreamBuffer::Create(GL_UNIFORM_BUFFER, VERTEX_UNIFORM_BUFFER_SIZE);
@@ -330,6 +336,14 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 			Host::ReportErrorAsync("GS", "Failed to create vertex/index/uniform streaming buffers");
 			return false;
 		}
+
+		WriteToStreamBuffer(m_vertex_uniform_stream_buffer.get(), g_vs_cb_index,
+			m_uniform_buffer_alignment, &m_vs_cb_cache, sizeof(m_vs_cb_cache));
+		WriteToStreamBuffer(m_fragment_uniform_stream_buffer.get(), g_ps_cb_index,
+			m_uniform_buffer_alignment, &m_ps_cb_cache, sizeof(m_ps_cb_cache));
+
+		glGenVertexArrays(1, &m_vertex_array_object);
+		glBindVertexArray(m_vertex_array_object);
 
 		// rebind because of VAO state
 		m_vertex_stream_buffer->Bind();
@@ -365,6 +379,39 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 		}
 	}
 
+	// pre link callback for GL4.1
+	const auto pre_link_callback = [](GL::Program& prog) {
+		if (GLLoader::has_binding_layout)
+			return;
+
+		prog.BindAttribute(0, "POSITION");
+		prog.BindAttribute(1, "TEXCOORD0");
+		prog.BindAttribute(2, "COLOR");
+
+		if (!GLLoader::is_gles)
+			prog.BindFragData(0, "SV_Target0");
+	};
+	const auto pre_link_callback_int = [](GL::Program& prog) {
+		if (GLLoader::has_binding_layout)
+			return;
+
+		prog.BindAttribute(0, "POSITION");
+		prog.BindAttribute(1, "TEXCOORD0");
+		prog.BindAttribute(2, "COLOR");
+
+		if (!GLLoader::is_gles)
+			prog.BindFragData(0, "SV_Target1");
+	};
+	const auto post_link_callback = [](GL::Program& prog) {
+		if (GLLoader::has_binding_layout)
+			return;
+
+		prog.Bind();
+		prog.Uniform1i("TextureSampler", 0);
+		prog.BindUniformBlock("cb21", 0);
+		prog.BindUniformBlock("cb20", 1);
+	};
+
 	// ****************************************************************
 	// convert
 	// ****************************************************************
@@ -388,8 +435,19 @@ bool GSDeviceOGL::Create(HostDisplay* display)
                                               format("#define PS_SCALE_FACTOR %d\n", GSConfig.UpscaleMultiplier) :
                                               std::string();
 			const std::string ps(GetShaderSource(name, GL_FRAGMENT_SHADER, m_shader_common_header, *shader, macro_sel));
-			if (!m_shader_cache.GetProgram(&m_convert.ps[i], m_convert.vs, {}, ps))
-				return false;
+			const bool is_integer_output = (static_cast<ShaderConvert>(i) == ShaderConvert::RGBA8_TO_16_BITS ||
+											static_cast<ShaderConvert>(i) == ShaderConvert::FLOAT32_TO_32_BITS);
+			if (is_integer_output)
+			{
+				if (!m_shader_cache.GetProgram(&m_convert.ps[i], m_convert.vs, {}, ps, pre_link_callback_int))
+					return false;
+			}
+			else
+			{
+				if (!m_shader_cache.GetProgram(&m_convert.ps[i], m_convert.vs, {}, ps, pre_link_callback))
+					return false;
+			}
+			post_link_callback(m_convert.ps[i]);
 			m_convert.ps[i].SetFormattedName("Convert pipe %s", name);
 
 			if (static_cast<ShaderConvert>(i) == ShaderConvert::YUV)
@@ -425,8 +483,9 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 		for (size_t i = 0; i < std::size(m_merge_obj.ps); i++)
 		{
 			const std::string ps(GetShaderSource(format("ps_main%d", i), GL_FRAGMENT_SHADER, m_shader_common_header, *shader, {}));
-			if (!m_shader_cache.GetProgram(&m_merge_obj.ps[i], m_convert.vs, {}, ps))
+			if (!m_shader_cache.GetProgram(&m_merge_obj.ps[i], m_convert.vs, {}, ps, pre_link_callback))
 				return false;
+			post_link_callback(m_merge_obj.ps[i]);
 			m_merge_obj.ps[i].SetFormattedName("Merge pipe %zu", i);
 			m_merge_obj.ps[i].RegisterUniform("BGColor");
 		}
@@ -448,8 +507,9 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 		for (size_t i = 0; i < std::size(m_interlace.ps); i++)
 		{
 			const std::string ps(GetShaderSource(format("ps_main%d", i), GL_FRAGMENT_SHADER, m_shader_common_header, *shader, {}));
-			if (!m_shader_cache.GetProgram(&m_interlace.ps[i], m_convert.vs, {}, ps))
+			if (!m_shader_cache.GetProgram(&m_interlace.ps[i], m_convert.vs, {}, ps, pre_link_callback))
 				return false;
+			post_link_callback(m_interlace.ps[i]);
 			m_interlace.ps[i].SetFormattedName("Merge pipe %zu", i);
 			m_interlace.ps[i].RegisterUniform("ZrH");
 			m_interlace.ps[i].RegisterUniform("hH");
@@ -470,8 +530,9 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 		}
 
 		const std::string ps(GetShaderSource("ps_main", GL_FRAGMENT_SHADER, m_shader_common_header, *shader, {}));
-		if (!m_shader_cache.GetProgram(&m_shadeboost.ps, m_convert.vs, {}, ps))
+		if (!m_shader_cache.GetProgram(&m_shadeboost.ps, m_convert.vs, {}, ps, pre_link_callback))
 			return false;
+		post_link_callback(m_shadeboost.ps);
 		m_shadeboost.ps.RegisterUniform("params");
 		m_shadeboost.ps.SetName("Shadeboost pipe");
 	}
@@ -992,6 +1053,12 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view& entry, GLenum typ
 		else if (GLAD_GL_ES_VERSION_3_1)
 			header = "#version 310 es\n";
 
+		if (!GLAD_GL_ES_VERSION_3_2)
+		{
+			header += "#extension GL_OES_shader_io_blocks : require\n";
+			if (GLAD_GL_OES_geometry_shader)
+				header += "#extension GL_OES_geometry_shader : require\n";
+		}
 		if (GLAD_GL_EXT_blend_func_extended)
 			header += "#extension GL_EXT_blend_func_extended : require\n";
 		if (GLAD_GL_ARB_blend_func_extended)
@@ -1024,9 +1091,14 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view& entry, GLenum typ
 		header = "#version 330 core\n";
 
 		// Need GL version 420
-		header += "#extension GL_ARB_shading_language_420pack: require\n";
-		// Need GL version 410
-		header += "#extension GL_ARB_separate_shader_objects: require\n";
+		if (GLLoader::has_binding_layout)
+		{
+			header += "#extension GL_ARB_shading_language_420pack : require\n";
+			header += "#extension GL_ARB_explicit_attrib_location : require\n";
+		}
+
+		if (GLAD_GL_ARB_enhanced_layouts)
+			header += "#extension GL_ARB_enhanced_layouts : require\n";
 
 		if (m_features.framebuffer_fetch && GLAD_GL_EXT_shader_framebuffer_fetch)
 			header += "#extension GL_EXT_shader_framebuffer_fetch : require\n";
@@ -1055,8 +1127,18 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view& entry, GLenum typ
 	else
 		header += "#define HAS_CLIP_CONTROL 0\n";
 
-	if (GLLoader::vendor_id_amd || GLLoader::vendor_id_intel)
-		header += "#define BROKEN_DRIVER as_usual\n";
+	if (GLLoader::has_binding_layout)
+		header += "#define HAS_BINDING_LAYOUT 1\n";
+	else
+		header += "#define HAS_BINDING_LAYOUT 0\n";
+
+	if (GLLoader::has_enhanced_layouts && !GLLoader::vendor_id_amd && !GLLoader::vendor_id_intel)
+		header += "#define HAS_ENHANCED_LAYOUTS 1\n";
+	else
+		header += "#define HAS_ENHANCED_LAYOUTS 0\n";
+
+	//if (GLLoader::vendor_id_amd || GLLoader::vendor_id_intel)
+		//header += "#define BROKEN_DRIVER as_usual\n";
 
 	// Stupid GL implementation (can't use GL_ES)
 	// AMD/nvidia define it to 0
@@ -1756,8 +1838,7 @@ void GSDeviceOGL::OMSetColorMaskState(OMColorMaskSelector sel)
 	if (sel.wrgba != GLState::wrgba)
 	{
 		GLState::wrgba = sel.wrgba;
-
-		glColorMaski(0, sel.wr, sel.wg, sel.wb, sel.wa);
+		glColorMask(sel.wr, sel.wg, sel.wb, sel.wa);
 	}
 }
 
@@ -1849,13 +1930,38 @@ void GSDeviceOGL::OMSetRenderTargets(GSTexture* rt, GSTexture* ds, const GSVecto
 	}
 }
 
-__fi static void WriteToStreamBuffer(GL::StreamBuffer* sb, u32 index, u32 align, const void* data, u32 size)
+static void TFXPreLinkCallback(GL::Program& prog)
 {
-	const auto res = sb->Map(align, size);
-	std::memcpy(res.pointer, data, size);
-	sb->Unmap(size);
+	if (GLLoader::has_binding_layout)
+		return;
 
-	glBindBufferRange(GL_UNIFORM_BUFFER, index, sb->GetGLBufferId(), res.buffer_offset, size);
+	prog.BindAttribute(0, "i_st");
+	prog.BindAttribute(2, "i_c");
+	prog.BindAttribute(3, "i_q");
+	prog.BindAttribute(4, "i_p");
+	prog.BindAttribute(5, "i_z");
+	prog.BindAttribute(6, "i_uv");
+	prog.BindAttribute(7, "i_f");
+
+	if (GLLoader::has_dual_source_blend)
+	{
+		prog.BindFragDataIndexed(0, "SV_Target0");
+		prog.BindFragDataIndexed(1, "SV_Target1");
+	}
+	else if (!GLLoader::is_gles)
+	{
+		prog.BindFragData(0, "SV_Target0");
+	}
+}
+
+static void TFXPostLinkCallback(GL::Program& prog)
+{
+	prog.Bind();
+	prog.Uniform1i("TextureSampler", 0);
+	prog.Uniform1i("PaletteSampler", 1);
+	prog.Uniform1i("RtSampler", 2);
+	prog.BindUniformBlock("cb21", 0);
+	prog.BindUniformBlock("cb20", 1);
 }
 
 void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
@@ -1872,7 +1978,8 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
 	const std::string gs((psel.gs.key != 0) ? GetGSSource(psel.gs) : std::string());
 
 	GL::Program prog;
-	m_shader_cache.GetProgram(&prog, vs, gs, ps);
+	if (m_shader_cache.GetProgram(&prog, vs, gs, ps, TFXPreLinkCallback))
+		TFXPostLinkCallback(prog);
 	it = m_programs.emplace(psel, std::move(prog)).first;
 	it->second.Bind();
 }
@@ -1949,21 +2056,27 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 		}
 	}
 
+	GSTexture* temp_tex = nullptr;
 	GSTexture* hdr_rt = nullptr;
 	if (config.ps.hdr)
 	{
 		GSVector2i size = config.rt->GetSize();
 		hdr_rt = CreateRenderTarget(size.x, size.y, GSTexture::Format::FloatColor);
-		hdr_rt->CommitRegion(GSVector2i(config.drawarea.z, config.drawarea.w));
-		OMSetRenderTargets(hdr_rt, config.ds, &config.scissor);
-
-		// save blend state, since BlitRect destroys it
-		const bool old_blend = GLState::blend;
-		BlitRect(config.rt, config.drawarea, config.rt->GetSize(), false, false);
-		if (old_blend)
+		if (hdr_rt)
 		{
-			GLState::blend = old_blend;
-			glEnable(GL_BLEND);
+			temp_tex = hdr_rt;
+
+			hdr_rt->CommitRegion(GSVector2i(config.drawarea.z, config.drawarea.w));
+			OMSetRenderTargets(hdr_rt, config.ds, &config.scissor);
+
+			// save blend state, since BlitRect destroys it
+			const bool old_blend = GLState::blend;
+			BlitRect(config.rt, config.drawarea, config.rt->GetSize(), false, false);
+			if (old_blend)
+			{
+				GLState::blend = old_blend;
+				glEnable(GL_BLEND);
+			}
 		}
 	}
 
@@ -1981,8 +2094,29 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 	IASetPrimitiveTopology(topology);
 
 	PSSetShaderResources(config.tex, config.pal);
-	// Always bind the RT. This way special effect can use it.
-	PSSetShaderResource(2, config.rt);
+
+	if (config.require_one_barrier && !m_features.one_texture_barrier && !config.ps.hdr)
+	{
+		// requires a copy of the RT, reuse hdr_rt pointer
+		temp_tex = CreateTexture(config.rt->GetWidth(), config.rt->GetHeight(), false, GSTexture::Format::Color, true);
+		if (temp_tex)
+		{
+			GL_PUSH("Copy RT to temp texture for fbmask {%d,%d %dx%d}",
+				config.drawarea.left, config.drawarea.top,
+				config.drawarea.width(), config.drawarea.height());
+
+			CopyRect(config.rt, temp_tex, config.drawarea);
+			PSSetShaderResource(2, temp_tex);
+		}
+
+		// clear barrier flag so we don't try to insert one
+		config.require_one_barrier = false;
+	}
+	else
+	{
+		// Always bind the RT. This way special effect can use it.
+		PSSetShaderResource(2, config.rt);
+	}
 
 	SetupSampler(config.sampler);
 	OMSetBlendState(config.blend.enable, s_gl_blend_factors[config.blend.src_factor],
@@ -2128,15 +2262,16 @@ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
 
 	// Warning: EndScene must be called before StretchRect otherwise
 	// vertices will be overwritten. Trust me you don't want to do that.
-	if (hdr_rt)
+	if (config.ps.hdr)
 	{
 		GSVector2i size = config.rt->GetSize();
 		GSVector4 dRect(config.drawarea);
 		const GSVector4 sRect = dRect / GSVector4(size.x, size.y).xyxy();
 		StretchRect(hdr_rt, sRect, config.rt, dRect, ShaderConvert::MOD_256, false);
-
-		Recycle(hdr_rt);
 	}
+
+	if (temp_tex)
+		Recycle(temp_tex);
 }
 
 void GSDeviceOGL::SendHWDraw(const GSHWDrawConfig& config, bool needs_barrier)

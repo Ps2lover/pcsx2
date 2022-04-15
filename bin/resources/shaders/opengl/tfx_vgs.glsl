@@ -1,18 +1,15 @@
 //#version 420 // Keep it for text editor detection
 
 #ifdef VERTEX_SHADER
-layout(location = 0) in vec2  i_st;
-layout(location = 2) in vec4  i_c;
-layout(location = 3) in float i_q;
-layout(location = 4) in uvec2 i_p;
-layout(location = 5) in uint  i_z;
-layout(location = 6) in uvec2 i_uv;
-layout(location = 7) in vec4  i_f;
+LAYOUT_LOCATION(0) in vec2  i_st;
+LAYOUT_LOCATION(2) in vec4  i_c;
+LAYOUT_LOCATION(3) in float i_q;
+LAYOUT_LOCATION(4) in uvec2 i_p;
+LAYOUT_LOCATION(5) in uint  i_z;
+LAYOUT_LOCATION(6) in uvec2 i_uv;
+LAYOUT_LOCATION(7) in vec4  i_f;
 
-#if !defined(BROKEN_DRIVER) && (pGL_ES || defined(GL_ARB_enhanced_layouts) && GL_ARB_enhanced_layouts)
-layout(location = 0)
-#endif
-out SHADER
+INOUT_LOCATION(0) out SHADER
 {
     vec4 t_float;
     vec4 t_int;
@@ -84,10 +81,7 @@ void vs_main()
 
 #ifdef GEOMETRY_SHADER
 
-#if !defined(BROKEN_DRIVER) && (pGL_ES || defined(GL_ARB_enhanced_layouts) && GL_ARB_enhanced_layouts)
-layout(location = 0)
-#endif
-in SHADER
+INOUT_LOCATION(0) in SHADER
 {
     vec4 t_float;
     vec4 t_int;
@@ -98,10 +92,7 @@ in SHADER
     #endif
 } GSin[];
 
-#if !defined(BROKEN_DRIVER) && (pGL_ES || defined(GL_ARB_enhanced_layouts) && GL_ARB_enhanced_layouts)
-layout(location = 0)
-#endif
-out SHADER
+INOUT_LOCATION(0) out SHADER
 {
     vec4 t_float;
     vec4 t_int;
