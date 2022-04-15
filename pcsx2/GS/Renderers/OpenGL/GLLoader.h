@@ -22,12 +22,6 @@
 
 #include "glad.h"
 
-namespace GLExtension
-{
-	extern bool Has(const std::string& ext);
-	extern void Set(const std::string& ext, bool v = true);
-} // namespace GLExtension
-
 namespace GLLoader
 {
 	bool check_gl_requirements();
@@ -45,6 +39,7 @@ namespace GLLoader
 	extern bool has_dual_source_blend;
 	extern bool found_framebuffer_fetch;
 	extern bool found_geometry_shader;
+	extern bool found_texture_barrier;
 	extern bool found_GL_ARB_gpu_shader5;
 	extern bool found_GL_ARB_shader_image_load_store;
 	extern bool found_GL_ARB_clear_texture;

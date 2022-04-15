@@ -221,8 +221,8 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 	m_features.broken_point_sampler = GLLoader::vendor_id_amd;
 	m_features.geometry_shader = GLLoader::found_geometry_shader;
 	m_features.image_load_store = GLLoader::found_GL_ARB_shader_image_load_store && GLLoader::found_GL_ARB_clear_texture;
-	m_features.one_texture_barrier = GSConfig.OverrideTextureBarriers != 0;
-	m_features.full_texture_barriers = (GSConfig.OverrideTextureBarriers < 0 || GSConfig.OverrideTextureBarriers == 1);
+	m_features.one_texture_barrier = (GLLoader::found_texture_barrier && GLLoader::found_framebuffer_fetch) && GSConfig.OverrideTextureBarriers != 0;
+	m_features.full_texture_barriers = (GLLoader::found_texture_barrier && GLLoader::found_framebuffer_fetch) && (GSConfig.OverrideTextureBarriers < 0 || GSConfig.OverrideTextureBarriers == 1);
 	m_features.provoking_vertex_last = true;
 	m_features.dxt_textures = GL_EXT_texture_compression_s3tc;
 	m_features.bptc_textures = GL_VERSION_4_2 || GL_ARB_texture_compression_bptc || GL_EXT_texture_compression_bptc;
@@ -554,7 +554,7 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 		// Full vram, remove a small margin for others buffer
 		glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, vram);
 	}
-	else if (GLExtension::Has("GL_NVX_gpu_memory_info"))
+	else if (GLAD_GL_NVX_gpu_memory_info)
 	{
 		// GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX <= give full memory
 		// Available vram
@@ -896,10 +896,9 @@ GLuint GSDeviceOGL::CreateSampler(PSSamplerSelector sel)
 	const int anisotropy = GSConfig.MaxAnisotropy;
 	if (anisotropy && sel.aniso)
 	{
-		if (GLExtension::Has("GL_ARB_texture_filter_anisotropic"))
+		static_assert(GL_TEXTURE_MAX_ANISOTROPY == GL_TEXTURE_MAX_ANISOTROPY_EXT);
+		if (GLAD_GL_ARB_texture_filter_anisotropic || GLAD_GL_EXT_texture_filter_anisotropic)
 			glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY, (float)anisotropy);
-		else if (GLExtension::Has("GL_EXT_texture_filter_anisotropic"))
-			glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)anisotropy);
 	}
 
 	return sampler;
