@@ -1800,18 +1800,33 @@ if (APPLE)
 		generateMetallib(macos-metal2.3 air64-apple-macos11.0  Metal23)
 	endif()
 
+	get_target_property(PCSX2_SOURCES PCSX2 SOURCES)
+	foreach(source IN LISTS PCSX2_SOURCES)
+		# Set the right file types for .inl files in Xcode
+		if("${source}" MATCHES "\\.(inl|h)$")
+			set_source_files_properties("${source}" PROPERTIES XCODE_EXPLICIT_FILE_TYPE sourcecode.cpp.h)
+		endif()
+		# CMake makefile and ninja generators will attempt to share one PCH for both cpp and mm files
+		# That's not actually OK
+		if("${source}" MATCHES "\\.mm$")
+			set_source_files_properties("${source}" PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+		endif()
+	endforeach()
+
 	# MacOS defaults to having a maximum protection of the __DATA segment of rw (non-executable)
 	# We have a bunch of page-sized arrays in bss that we use for jit
 	# Obviously not being able to make those arrays executable would be a problem
-	target_link_options(PCSX2 PRIVATE -Wl,-segprot,__DATA,rwx,rw)
+	target_link_options(PCSX2_FLAGS INTERFACE -Wl,-segprot,__DATA,rwx,rw)
 
+	pcsx2_resource(${CMAKE_CURRENT_SOURCE_DIR}/gui/Resources/PCSX2.icns ${CMAKE_CURRENT_SOURCE_DIR}/gui/Resources)
+endif()
+
+if(APPLE AND NOT PCSX2_CORE)
 	set_target_properties(PCSX2 PROPERTIES
 		MACOSX_BUNDLE true
 		MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/gui/Resources/Info.plist.in"
 		OUTPUT_NAME PCSX2
 	)
-
-	pcsx2_resource(${CMAKE_CURRENT_SOURCE_DIR}/gui/Resources/PCSX2.icns ${CMAKE_CURRENT_SOURCE_DIR}/gui/Resources)
 
 	# If they say to skip postprocess bundle, leave the target in but make it so they have
 	# to manually run it
@@ -1826,19 +1841,6 @@ if (APPLE)
 			-P ${CMAKE_SOURCE_DIR}/cmake/Pcsx2PostprocessBundle.cmake
 	)
 	add_dependencies(pcsx2-postprocess-bundle PCSX2)
-
-	get_target_property(PCSX2_SOURCES PCSX2 SOURCES)
-	foreach(source IN LISTS PCSX2_SOURCES)
-		# Set the right file types for .inl files in Xcode
-		if("${source}" MATCHES "\\.(inl|h)$")
-			set_source_files_properties("${source}" PROPERTIES XCODE_EXPLICIT_FILE_TYPE sourcecode.cpp.h)
-		endif()
-		# CMake makefile and ninja generators will attempt to share one PCH for both cpp and mm files
-		# That's not actually OK
-		if("${source}" MATCHES "\\.mm$")
-			set_source_files_properties("${source}" PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
-		endif()
-	endforeach()
 endif()
 
 if(NOT DISABLE_SETCAP AND NOT PCSX2_CORE)
