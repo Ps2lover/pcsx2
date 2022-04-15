@@ -117,3 +117,35 @@ target_link_libraries(pcsx2-qt PRIVATE
 	Qt6::Widgets
 	Qt6::Network
 )
+
+if (APPLE)
+	set_target_properties(pcsx2-qt PROPERTIES
+		MACOSX_BUNDLE true
+		MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/../pcsx2/gui/Resources/Info.plist.in"
+		OUTPUT_NAME PCSX2
+	)
+
+	# If they say to skip postprocess bundle, leave the target in but make it so they have
+	# to manually run it
+	if (SKIP_POSTPROCESS_BUNDLE)
+		set(postprocessBundleType "")
+	else()
+		set(postprocessBundleType ALL)
+
+		#add_custom_target(pcsx2-postprocess-bundle ${postprocessBundleType}
+		#	COMMAND ${CMAKE_COMMAND} "-DPCSX2_BUNDLE_PATH=$<TARGET_FILE_DIR:pcsx2-qt>/../.."
+		#		-P ${CMAKE_SOURCE_DIR}/cmake/Pcsx2PostprocessBundle.cmake
+		#)
+		#add_dependencies(pcsx2-postprocess-bundle pcsx2-qt)
+
+		# Call macdeployqt to add the plugins into PCSX2.app
+		get_target_property(MOC_EXECUTABLE_LOCATION Qt6::moc IMPORTED_LOCATION)
+		get_filename_component(QT_BINARY_DIRECTORY "${MOC_EXECUTABLE_LOCATION}" DIRECTORY)
+		find_program(MACDEPLOYQT_EXE macdeployqt HINTS "${QT_BINARY_DIRECTORY}")
+		add_custom_command(TARGET pcsx2-qt POST_BUILD
+			COMMAND "${MACDEPLOYQT_EXE}"
+			"$<TARGET_FILE_DIR:pcsx2-qt>/../.."
+			"-no-strip"
+		)
+	endif()
+endif()
