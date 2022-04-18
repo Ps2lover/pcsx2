@@ -19,6 +19,7 @@ target_sources(common PRIVATE
 	Exceptions.cpp
 	FastJmp.cpp
 	FileSystem.cpp
+	HTTPDownloader.cpp
 	Misc.cpp
 	MD5Digest.cpp
 	PrecompiledHeader.cpp
@@ -28,6 +29,7 @@ target_sources(common PRIVATE
 	SettingsWrapper.cpp
 	StringUtil.cpp
 	Timer.cpp
+	ThreadPool.cpp
 	WindowInfo.cpp
 	emitter/bmi.cpp
 	emitter/cpudetect.cpp
@@ -67,6 +69,7 @@ target_sources(common PRIVATE
 	FileSystem.h
 	General.h
 	HashCombine.h
+	HTTPDownloader.h
 	MemcpyFast.h
 	MemsetFast.inl
 	MD5Digest.h
@@ -83,6 +86,7 @@ target_sources(common PRIVATE
 	StringUtil.h
 	Timer.h
 	Threading.h
+	ThreadPool.h
 	TraceLog.h
 	WindowInfo.h
 	emitter/cpudetect_internal.h
@@ -168,6 +172,8 @@ if(WIN32)
 		CrashHandler.cpp
 		CrashHandler.h
 		FastJmp.asm
+		HTTPDownloaderWinHTTP.cpp
+		HTTPDownloaderWinHTTP.h
 		StackWalker.cpp
 		StackWalker.h
 		D3D11/ShaderCache.cpp
