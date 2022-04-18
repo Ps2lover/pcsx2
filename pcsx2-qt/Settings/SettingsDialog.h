@@ -40,6 +40,7 @@ class GraphicsSettingsWidget;
 class AudioSettingsWidget;
 class MemoryCardSettingsWidget;
 class DEV9SettingsWidget;
+class AchievementSettingsWidget;
 
 class SettingsDialog final : public QDialog
 {
@@ -66,6 +67,7 @@ public:
 	__fi AudioSettingsWidget* getAudioSettingsWidget() const { return m_audio_settings; }
 	__fi MemoryCardSettingsWidget* getMemoryCardSettingsWidget() const { return m_memory_card_settings; }
 	__fi DEV9SettingsWidget* getDEV9SettingsWidget() const { return m_dev9_settings; }
+	__fi AchievementSettingsWidget* getAchievementSettingsWidget() const { return m_achievement_settings; }
 
 	void registerWidgetHelp(QObject* object, QString title, QString recommended_value, QString text);
 	bool eventFilter(QObject* object, QEvent* event) override;
@@ -101,7 +103,7 @@ protected:
 private:
 	enum : u32
 	{
-		MAX_SETTINGS_WIDGETS = 11
+		MAX_SETTINGS_WIDGETS = 12
 	};
 
 	void setupUi(const GameList::Entry* game);
@@ -123,6 +125,7 @@ private:
 	AudioSettingsWidget* m_audio_settings = nullptr;
 	MemoryCardSettingsWidget* m_memory_card_settings = nullptr;
 	DEV9SettingsWidget* m_dev9_settings = nullptr;
+	AchievementSettingsWidget* m_achievement_settings = nullptr;
 
 	std::array<QString, MAX_SETTINGS_WIDGETS> m_category_help_text;
 

@@ -42,6 +42,11 @@
 #include "MemoryCardSettingsWidget.h"
 #include "SystemSettingsWidget.h"
 
+#ifdef ENABLE_ACHIEVEMENTS
+#include "AchievementSettingsWidget.h"
+#include "pcsx2/Frontend/Achievements.h"
+#endif
+
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QTextEdit>
 
@@ -132,6 +137,31 @@ void SettingsDialog::setupUi(const GameList::Entry* game)
 	addWidget(m_dev9_settings = new DEV9SettingsWidget(this, m_ui.settingsContainer), tr("Network & HDD"), QStringLiteral("dashboard-line"),
 		tr("<strong>Network & HDD Settings</strong><hr>These options control the network connectivity and internal HDD storage of the console.<br><br>"
 		   "Mouse over an option for additional information."));
+
+	const QString retroachievements_title = tr("Achievements");
+	const QString retroachievements_help = tr(
+		"<strong>Achievements Settings</strong><hr>"
+		"These options control the RetroAchievements implementation in PCSX2, allowing you to earn achievements in your games.");
+#ifdef ENABLE_ACHIEVEMENTS
+	if (Achievements::IsUsingRAIntegration())
+	{
+		QLabel* placeholder_label =
+			new QLabel(tr("RAIntegration is being used, built-in RetroAchievements support is disabled."),
+				m_ui.settingsContainer);
+		placeholder_label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+		addWidget(placeholder_label, std::move(retroachievements_title), QStringLiteral("trophy-line"), std::move(retroachievements_help));
+	}
+	else
+	{
+		addWidget((m_achievement_settings = new AchievementSettingsWidget(this, m_ui.settingsContainer)),
+			std::move(retroachievements_title), QStringLiteral("trophy-line"), std::move(retroachievements_help));
+	}
+#else
+	QLabel* placeholder_label =
+		new QLabel(tr("This PCSX2 build was not compiled with RetroAchievements support."), m_ui.settingsContainer);
+	placeholder_label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+	addWidget(placeholder_label, std::move(retroachievements_title), QStringLiteral("trophy-line"), std::move(retroachievements_help));
+#endif
 
 	m_ui.settingsCategory->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 	m_ui.settingsCategory->setCurrentRow(0);

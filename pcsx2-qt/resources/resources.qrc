@@ -36,6 +36,7 @@
 		<file>icons/black/16/keyboard-line.png</file>
 		<file>icons/black/16/layout-grid-line.png</file>
 		<file>icons/black/16/list-check.png</file>
+		<file>icons/black/16/login-box-line.png</file>
 		<file>icons/black/16/pause-line.png</file>
 		<file>icons/black/16/play-line.png</file>
 		<file>icons/black/16/refresh-line.png</file>
@@ -45,6 +46,7 @@
 		<file>icons/black/16/sd-card-line.png</file>
 		<file>icons/black/16/settings-3-line.png</file>
 		<file>icons/black/16/shut-down-line.png</file>
+		<file>icons/black/16/trophy-line.png</file>
 		<file>icons/black/16/tv-2-line.png</file>
 		<file>icons/black/16/volume-up-line.png</file>
 		<file>icons/black/16/window-2-line.png</file>
@@ -76,6 +78,7 @@
 		<file>icons/black/24/keyboard-line.png</file>
 		<file>icons/black/24/layout-grid-line.png</file>
 		<file>icons/black/24/list-check.png</file>
+		<file>icons/black/24/login-box-line.png</file>
 		<file>icons/black/24/pause-line.png</file>
 		<file>icons/black/24/play-line.png</file>
 		<file>icons/black/24/refresh-line.png</file>
@@ -85,6 +88,7 @@
 		<file>icons/black/24/sd-card-line.png</file>
 		<file>icons/black/24/settings-3-line.png</file>
 		<file>icons/black/24/shut-down-line.png</file>
+		<file>icons/black/24/trophy-line.png</file>
 		<file>icons/black/24/volume-up-line.png</file>
 		<file>icons/black/24/window-2-line.png</file>
 		<file>icons/black/32/artboard-2-line.png</file>
@@ -115,6 +119,7 @@
 		<file>icons/black/32/keyboard-line.png</file>
 		<file>icons/black/32/layout-grid-line.png</file>
 		<file>icons/black/32/list-check.png</file>
+		<file>icons/black/32/login-box-line.png</file>
 		<file>icons/black/32/pause-line.png</file>
 		<file>icons/black/32/play-line.png</file>
 		<file>icons/black/32/refresh-line.png</file>
@@ -124,6 +129,7 @@
 		<file>icons/black/32/sd-card-line.png</file>
 		<file>icons/black/32/settings-3-line.png</file>
 		<file>icons/black/32/shut-down-line.png</file>
+		<file>icons/black/32/trophy-line.png</file>
 		<file>icons/black/32/tv-2-line.png</file>
 		<file>icons/black/32/volume-up-line.png</file>
 		<file>icons/black/32/window-2-line.png</file>
@@ -155,6 +161,7 @@
 		<file>icons/black/48/keyboard-line.png</file>
 		<file>icons/black/48/layout-grid-line.png</file>
 		<file>icons/black/48/list-check.png</file>
+		<file>icons/black/48/login-box-line.png</file>
 		<file>icons/black/48/pause-line.png</file>
 		<file>icons/black/48/play-line.png</file>
 		<file>icons/black/48/refresh-line.png</file>
@@ -164,6 +171,7 @@
 		<file>icons/black/48/sd-card-line.png</file>
 		<file>icons/black/48/settings-3-line.png</file>
 		<file>icons/black/48/shut-down-line.png</file>
+		<file>icons/black/48/trophy-line.png</file>
 		<file>icons/black/48/volume-up-line.png</file>
 		<file>icons/black/48/window-2-line.png</file>
 		<file>icons/black/64/artboard-2-line.png</file>
@@ -194,6 +202,7 @@
 		<file>icons/black/64/keyboard-line.png</file>
 		<file>icons/black/64/layout-grid-line.png</file>
 		<file>icons/black/64/list-check.png</file>
+		<file>icons/black/64/login-box-line.png</file>
 		<file>icons/black/64/pause-line.png</file>
 		<file>icons/black/64/play-line.png</file>
 		<file>icons/black/64/refresh-line.png</file>
@@ -203,6 +212,7 @@
 		<file>icons/black/64/sd-card-line.png</file>
 		<file>icons/black/64/settings-3-line.png</file>
 		<file>icons/black/64/shut-down-line.png</file>
+		<file>icons/black/64/trophy-line.png</file>
 		<file>icons/black/64/tv-2-line.png</file>
 		<file>icons/black/64/volume-up-line.png</file>
 		<file>icons/black/64/window-2-line.png</file>
@@ -264,6 +274,7 @@
 		<file>icons/white/16/keyboard-line.png</file>
 		<file>icons/white/16/layout-grid-line.png</file>
 		<file>icons/white/16/list-check.png</file>
+		<file>icons/white/16/login-box-line.png</file>
 		<file>icons/white/16/pause-line.png</file>
 		<file>icons/white/16/play-line.png</file>
 		<file>icons/white/16/refresh-line.png</file>
@@ -273,6 +284,7 @@
 		<file>icons/white/16/sd-card-line.png</file>
 		<file>icons/white/16/settings-3-line.png</file>
 		<file>icons/white/16/shut-down-line.png</file>
+		<file>icons/white/16/trophy-line.png</file>
 		<file>icons/white/16/tv-2-line.png</file>
 		<file>icons/white/16/volume-up-line.png</file>
 		<file>icons/white/16/window-2-line.png</file>
@@ -304,6 +316,7 @@
 		<file>icons/white/24/keyboard-line.png</file>
 		<file>icons/white/24/layout-grid-line.png</file>
 		<file>icons/white/24/list-check.png</file>
+		<file>icons/white/24/login-box-line.png</file>
 		<file>icons/white/24/pause-line.png</file>
 		<file>icons/white/24/play-line.png</file>
 		<file>icons/white/24/refresh-line.png</file>
@@ -313,6 +326,7 @@
 		<file>icons/white/24/sd-card-line.png</file>
 		<file>icons/white/24/settings-3-line.png</file>
 		<file>icons/white/24/shut-down-line.png</file>
+		<file>icons/white/24/trophy-line.png</file>
 		<file>icons/white/24/tv-2-line.png</file>
 		<file>icons/white/24/volume-up-line.png</file>
 		<file>icons/white/24/window-2-line.png</file>
@@ -344,6 +358,7 @@
 		<file>icons/white/32/keyboard-line.png</file>
 		<file>icons/white/32/layout-grid-line.png</file>
 		<file>icons/white/32/list-check.png</file>
+		<file>icons/white/32/login-box-line.png</file>
 		<file>icons/white/32/pause-line.png</file>
 		<file>icons/white/32/play-line.png</file>
 		<file>icons/white/32/refresh-line.png</file>
@@ -353,6 +368,7 @@
 		<file>icons/white/32/sd-card-line.png</file>
 		<file>icons/white/32/settings-3-line.png</file>
 		<file>icons/white/32/shut-down-line.png</file>
+		<file>icons/white/32/trophy-line.png</file>
 		<file>icons/white/32/tv-2-line.png</file>
 		<file>icons/white/32/volume-up-line.png</file>
 		<file>icons/white/32/window-2-line.png</file>
@@ -384,6 +400,7 @@
 		<file>icons/white/48/keyboard-line.png</file>
 		<file>icons/white/48/layout-grid-line.png</file>
 		<file>icons/white/48/list-check.png</file>
+		<file>icons/white/48/login-box-line.png</file>
 		<file>icons/white/48/pause-line.png</file>
 		<file>icons/white/48/play-line.png</file>
 		<file>icons/white/48/refresh-line.png</file>
@@ -393,6 +410,7 @@
 		<file>icons/white/48/sd-card-line.png</file>
 		<file>icons/white/48/settings-3-line.png</file>
 		<file>icons/white/48/shut-down-line.png</file>
+		<file>icons/white/48/trophy-line.png</file>
 		<file>icons/white/48/tv-2-line.png</file>
 		<file>icons/white/48/volume-up-line.png</file>
 		<file>icons/white/48/window-2-line.png</file>
@@ -424,6 +442,7 @@
 		<file>icons/white/64/keyboard-line.png</file>
 		<file>icons/white/64/layout-grid-line.png</file>
 		<file>icons/white/64/list-check.png</file>
+		<file>icons/white/64/login-box-line.png</file>
 		<file>icons/white/64/pause-line.png</file>
 		<file>icons/white/64/play-line.png</file>
 		<file>icons/white/64/refresh-line.png</file>
@@ -433,6 +452,7 @@
 		<file>icons/white/64/sd-card-line.png</file>
 		<file>icons/white/64/settings-3-line.png</file>
 		<file>icons/white/64/shut-down-line.png</file>
+		<file>icons/white/64/trophy-line.png</file>
 		<file>icons/white/64/tv-2-line.png</file>
 		<file>icons/white/64/volume-up-line.png</file>
 		<file>icons/white/64/window-2-line.png</file>

@@ -933,6 +933,38 @@ struct Pcsx2Config
 		MemoryCardType Type; // the memory card implementation that should be used
 	};
 
+	// ------------------------------------------------------------------------
+
+#ifdef ENABLE_ACHIEVEMENTS
+	struct RetroAchievementsOptions
+	{
+		BITFIELD32()
+		bool
+			Enabled : 1,
+			TestMode : 1,
+			UnofficialTestMode : 1,
+			UseFirstDiscFromPlaylist : 1,
+			RichPresence : 1,
+			ChallengeMode : 1;
+		BITFIELD_END
+
+		RetroAchievementsOptions();
+		void LoadSave(SettingsWrapper& wrap);
+
+		bool operator==(const RetroAchievementsOptions& right) const
+		{
+			return OpEqu(bitset);
+		}
+
+		bool operator!=(const RetroAchievementsOptions& right) const
+		{
+			return !this->operator==(right);
+		}
+	};
+#endif
+
+	// ------------------------------------------------------------------------
+
 	BITFIELD32()
 	bool
 		CdvdVerboseReads : 1, // enables cdvd read activity verbosely dumped to the console
@@ -983,6 +1015,10 @@ struct Pcsx2Config
 	TraceLogFilters Trace;
 
 	FilenameOptions BaseFilenames;
+
+#ifdef ENABLE_ACHIEVEMENTS
+	RetroAchievementsOptions Achievements;
+#endif
 
 	std::string PatchRegion;
 

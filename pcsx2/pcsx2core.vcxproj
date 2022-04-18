@@ -48,13 +48,15 @@
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\libzip;$(SolutionDir)3rdparty\libzip\libzip\lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\d3d12memalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\zstd\zstd\lib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\rapidjson\rapidjson\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SolutionDir)3rdparty\rcheevos\rcheevos\include;$(SolutionDir)3rdparty\rainterface</AdditionalIncludeDirectories>
       <ExceptionHandling>Async</ExceptionHandling>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>PrecompiledHeader.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>PrecompiledHeader.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
       <AdditionalOptions>/Zc:externConstexpr %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;ZIP_STATIC;LZMA_API_STATIC;BUILD_DX=1;ENABLE_OPENGL;ENABLE_VULKAN;SPU2X_CUBEB;SDL_BUILD;PCSX2_CORE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;ZIP_STATIC;LZMA_API_STATIC;BUILD_DX=1;ENABLE_RAINTEGRATION;ENABLE_ACHIEVEMENTS;ENABLE_OPENGL;ENABLE_VULKAN;SPU2X_CUBEB;SDL_BUILD;PCSX2_CORE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="$(Configuration.Contains(Debug))">PCSX2_DEBUG;PCSX2_DEVBUILD;_SECURE_SCL_=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="$(Configuration.Contains(Devel))">PCSX2_DEVEL;PCSX2_DEVBUILD;NDEBUG;_SECURE_SCL_=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="$(Configuration.Contains(Release))">NDEBUG;_SECURE_SCL_=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -197,6 +199,7 @@
     <ClCompile Include="Frontend\InputSource.cpp" />
     <ClCompile Include="Frontend\LayeredSettingsInterface.cpp" />
     <ClCompile Include="Frontend\OpenGLHostDisplay.cpp" />
+    <ClCompile Include="Frontend\Achievements.cpp" />
     <ClCompile Include="Frontend\SDLInputSource.cpp" />
     <ClCompile Include="Frontend\VulkanHostDisplay.cpp" />
     <ClCompile Include="Frontend\XInputSource.cpp" />
@@ -515,6 +518,7 @@
     <ClInclude Include="Frontend\InputSource.h" />
     <ClInclude Include="Frontend\LayeredSettingsInterface.h" />
     <ClInclude Include="Frontend\OpenGLHostDisplay.h" />
+    <ClInclude Include="Frontend\Achievements.h" />
     <ClInclude Include="Frontend\SDLInputSource.h" />
     <ClInclude Include="Frontend\VulkanHostDisplay.h" />
     <ClInclude Include="Frontend\XInputSource.h" />
@@ -790,6 +794,12 @@
     </ProjectReference>
     <ProjectReference Include="..\3rdparty\libzip\libzip.vcxproj">
       <Project>{20b2e9fe-f020-42a0-b324-956f5b06ea68}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\3rdparty\rainterface\rainterface.vcxproj">
+      <Project>{95dd0a0c-d14d-4cff-a593-820ef26efcc8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\3rdparty\rcheevos\rcheevos.vcxproj">
+      <Project>{6d5b5ad9-1525-459b-939f-a5e1082af6b3}</Project>
     </ProjectReference>
     <ProjectReference Include="..\3rdparty\sdl2\SDL.vcxproj">
       <Project>{812b4434-fd6b-4cb2-8865-5fd8eb34b046}</Project>

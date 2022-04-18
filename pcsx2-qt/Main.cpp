@@ -28,6 +28,10 @@
 
 #include "common/CrashHandler.h"
 
+#ifdef ENABLE_RAINTEGRATION
+#include "Frontend/Achievements.h"
+#endif
+
 static void PrintCommandLineVersion()
 {
 	QtHost::InitializeEarlyConsole();
@@ -53,6 +57,9 @@ static void PrintCommandLineHelp(const char* progname)
 	std::fprintf(stderr, "  -statefile <filename>: Loads state from the specified filename.\n");
 	std::fprintf(stderr, "  -fullscreen: Enters fullscreen mode immediately after starting.\n");
 	std::fprintf(stderr, "  -nofullscreen: Prevents fullscreen mode from triggering if enabled.\n");
+#ifdef ENABLE_RAINTEGRATION
+	std::fprintf(stderr, "  -raintegration: Use RAIntegration instead of built-in achievement support.\n");
+#endif
 	std::fprintf(stderr, "  --: Signals that no more arguments will follow and the remaining\n"
 						 "    parameters make up the filename. Use when the filename contains\n"
 						 "    spaces or starts with a dash.\n");
@@ -139,6 +146,13 @@ static bool ParseCommandLineOptions(int argc, char* argv[], std::shared_ptr<VMBo
 				AutoBoot(autoboot)->fullscreen = false;
 				continue;
 			}
+#ifdef ENABLE_RAINTEGRATION
+			else if (CHECK_ARG("-raintegration"))
+			{
+				Achievements::SwitchToRAIntegration();
+				continue;
+			}
+#endif
 			else if (CHECK_ARG("--"))
 			{
 				no_more_args = true;
