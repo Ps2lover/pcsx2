@@ -1731,7 +1731,7 @@ void GSDeviceOGL::OMAttachDs(GSTextureOGL* ds)
 	{
 		GLState::ds = id;
 
-		const GLenum target = GLLoader::found_framebuffer_fetch ? GL_DEPTH_ATTACHMENT : GL_DEPTH_STENCIL_ATTACHMENT;
+		const GLenum target = m_features.framebuffer_fetch ? GL_DEPTH_ATTACHMENT : GL_DEPTH_STENCIL_ATTACHMENT;
 		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, target, GL_TEXTURE_2D, id, 0);
 	}
 }
