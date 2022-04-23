@@ -852,7 +852,8 @@ static const char* const tbl_GamefixNames[] =
 	"Ibit",
 	"VUSync",
 	"VUOverflow",
-	"XGKick"
+	"XGKick",
+	"BlitInternalFPS"
 };
 
 const char* EnumToString(GamefixId id)
@@ -917,6 +918,7 @@ void Pcsx2Config::GamefixOptions::Set(GamefixId id, bool enabled)
 		case Fix_Ibit:                IbitHack                = enabled; break;
 		case Fix_VUSync:              VUSyncHack              = enabled; break;
 		case Fix_VUOverflow:          VUOverflowHack          = enabled; break;
+		case Fix_BlitInternalFPS:     BlitInternalFPSHack     = enabled; break;
 		jNO_DEFAULT;
 	}
 }
@@ -942,6 +944,7 @@ bool Pcsx2Config::GamefixOptions::Get(GamefixId id) const
 		case Fix_Ibit:                return IbitHack;
 		case Fix_VUSync:              return VUSyncHack;
 		case Fix_VUOverflow:          return VUOverflowHack;
+		case Fix_BlitInternalFPS:     return BlitInternalFPSHack;
 		jNO_DEFAULT;
 	}
 	return false; // unreachable, but we still need to suppress warnings >_<
@@ -967,6 +970,7 @@ void Pcsx2Config::GamefixOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(IbitHack);
 	SettingsWrapBitBool(VUSyncHack);
 	SettingsWrapBitBool(VUOverflowHack);
+	SettingsWrapBitBool(BlitInternalFPSHack);
 }
 
 
