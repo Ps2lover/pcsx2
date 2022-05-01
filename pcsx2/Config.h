@@ -941,6 +941,7 @@ struct Pcsx2Config
 		EnableCheats : 1, // enables cheat detection and application
 		EnablePINE : 1, // enables inter-process communication
 		EnableWideScreenPatches : 1,
+		EnableNoInterlacingPatches : 1,
 #ifndef DISABLE_RECORDING
 		EnableRecordingTools : 1,
 #endif
@@ -1035,6 +1036,7 @@ namespace EmuFolders
 	extern wxDirName Logs;
 	extern wxDirName Cheats;
 	extern wxDirName CheatsWS;
+	extern wxDirName CheatsNI;
 	extern wxDirName Resources;
 	extern wxDirName Cache;
 	extern wxDirName Covers;
