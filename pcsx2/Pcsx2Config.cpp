@@ -44,6 +44,7 @@ namespace EmuFolders
 	wxDirName Logs;
 	wxDirName Cheats;
 	wxDirName CheatsWS;
+	wxDirName CheatsNI;
 	wxDirName Resources;
 	wxDirName Cache;
 	wxDirName Covers;
@@ -1073,6 +1074,7 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(EnableCheats);
 	SettingsWrapBitBool(EnablePINE);
 	SettingsWrapBitBool(EnableWideScreenPatches);
+	SettingsWrapBitBool(EnableNoInterlacingPatches);
 #ifndef DISABLE_RECORDING
 	SettingsWrapBitBool(EnableRecordingTools);
 #endif
@@ -1224,6 +1226,7 @@ void Pcsx2Config::CopyConfig(const Pcsx2Config& cfg)
 	EnableCheats = cfg.EnableCheats;
 	EnablePINE = cfg.EnablePINE;
 	EnableWideScreenPatches = cfg.EnableWideScreenPatches;
+	EnableNoInterlacingPatches = cfg.EnableNoInterlacingPatches;
 #ifndef DISABLE_RECORDING
 	EnableRecordingTools = cfg.EnableRecordingTools;
 #endif
@@ -1253,6 +1256,7 @@ void EmuFolders::SetDefaults()
 	Logs = DataRoot.Combine(wxDirName("logs"));
 	Cheats = DataRoot.Combine(wxDirName("cheats"));
 	CheatsWS = DataRoot.Combine(wxDirName("cheats_ws"));
+	CheatsNI = DataRoot.Combine(wxDirName("cheats_ni"));
 	Covers = DataRoot.Combine(wxDirName("covers"));
 	GameSettings = DataRoot.Combine(wxDirName("gamesettings"));
 	Cache = DataRoot.Combine(wxDirName("cache"));
@@ -1278,6 +1282,7 @@ void EmuFolders::LoadConfig(SettingsInterface& si)
 	Logs = LoadPathFromSettings(si, DataRoot, "Logs", "logs");
 	Cheats = LoadPathFromSettings(si, DataRoot, "Cheats", "cheats");
 	CheatsWS = LoadPathFromSettings(si, DataRoot, "CheatsWS", "cheats_ws");
+	CheatsNI = LoadPathFromSettings(si, DataRoot, "CheatsNI", "cheats_ni");
 	Covers = LoadPathFromSettings(si, DataRoot, "Covers", "covers");
 	GameSettings = LoadPathFromSettings(si, DataRoot, "GameSettings", "gamesettings");
 	Cache = LoadPathFromSettings(si, DataRoot, "Cache", "cache");
@@ -1291,6 +1296,7 @@ void EmuFolders::LoadConfig(SettingsInterface& si)
 	Console.WriteLn("Logs Directory: %s", Logs.ToString().c_str().AsChar());
 	Console.WriteLn("Cheats Directory: %s", Cheats.ToString().c_str().AsChar());
 	Console.WriteLn("CheatsWS Directory: %s", CheatsWS.ToString().c_str().AsChar());
+	Console.WriteLn("CheatsNI Directory: %s", CheatsNI.ToString().c_str().AsChar());
 	Console.WriteLn("Covers Directory: %s", Covers.ToString().c_str().AsChar());
 	Console.WriteLn("Game Settings Directory: %s", GameSettings.ToString().c_str().AsChar());
 	Console.WriteLn("Cache Directory: %s", Cache.ToString().c_str().AsChar());
@@ -1309,6 +1315,7 @@ void EmuFolders::Save(SettingsInterface& si)
 	si.SetStringValue("Folders", "Logs", wxDirName::MakeAutoRelativeTo(Logs, datarel).c_str());
 	si.SetStringValue("Folders", "Cheats", wxDirName::MakeAutoRelativeTo(Cheats, datarel).c_str());
 	si.SetStringValue("Folders", "CheatsWS", wxDirName::MakeAutoRelativeTo(CheatsWS, datarel).c_str());
+	si.SetStringValue("Folders", "CheatsNI", wxDirName::MakeAutoRelativeTo(CheatsNI, datarel).c_str());
 	si.SetStringValue("Folders", "Cache", wxDirName::MakeAutoRelativeTo(Cache, datarel).c_str());
 	si.SetStringValue("Folders", "Textures", wxDirName::MakeAutoRelativeTo(Textures, datarel).c_str());
 	si.SetStringValue("Folders", "InputProfiles", wxDirName::MakeAutoRelativeTo(InputProfiles, datarel).c_str());
@@ -1324,6 +1331,7 @@ bool EmuFolders::EnsureFoldersExist()
 	result = Logs.Mkdir() && result;
 	result = Cheats.Mkdir() && result;
 	result = CheatsWS.Mkdir() && result;
+	result = CheatsNI.Mkdir() && result;
 	result = Covers.Mkdir() && result;
 	result = GameSettings.Mkdir() && result;
 	result = Cache.Mkdir() && result;
