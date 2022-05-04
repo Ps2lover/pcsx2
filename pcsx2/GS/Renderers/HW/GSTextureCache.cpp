@@ -140,6 +140,9 @@ GSTextureCache::Source* GSTextureCache::LookupDepthSource(const GIFRegTEX0& TEX0
 			dst->m_texture ? dst->m_texture->GetID() : 0,
 			TEX0.TBP0, psm_str(psm));
 
+		// trigger tex-is-fb path
+		GSRendererHW::GetInstance()->UpdateTexIsFB(dst, TEX0);
+
 		// Create a shared texture source
 		src = new Source(TEX0, TEXA, true);
 		src->m_texture = dst->m_texture;
@@ -1337,7 +1340,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			AttachPaletteToSource(src, psm.pal, true);
 		}
 	}
-	else if (dst && GSRendererHW::GetInstance()->IsDummyTexture())
+	else if (dst && GSRendererHW::GetInstance()->UpdateTexIsFB(dst, TEX0))
 	{
 		// This shortcut is a temporary solution. It isn't a good solution
 		// as it won't work with Channel Shuffle/Texture Shuffle pattern
@@ -1350,20 +1353,25 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 		// So it could be tricky to put in the middle of the DrawPrims
 
 		// Texture is created to keep code compatibility
-		GSTexture* dTex = g_gs_device->CreateTexture(tw, th, false, GSTexture::Format::Color, true);
+		//GSTexture* dTex = g_gs_device->CreateTexture(tw, th, false, GSTexture::Format::Color, true);
 
 		// Keep a trace of origin of the texture
-		src->m_texture = dTex;
+		src->m_texture = dst->m_texture;
 		src->m_target = true;
+		src->m_shared_texture = true;
 		src->m_from_target = &dst->m_texture;
 		src->m_from_target_TEX0 = dst->m_TEX0;
 		src->m_end_block = dst->m_end_block;
 		src->m_texture->SetScale(dst->m_texture->GetScale());
+		src->m_32_bits_fmt = dst->m_32_bits_fmt;
 
 		// Even if we sample the framebuffer directly we might need the palette
 		// to handle the format conversion on GPU
 		if (psm.pal > 0)
 			AttachPaletteToSource(src, psm.pal, true);
+
+		// This will get immediately invalidated.
+		m_temporary_source = src;
 	}
 	else if (dst)
 	{
@@ -1505,7 +1513,7 @@ GSTextureCache::Source* GSTextureCache::CreateSource(const GIFRegTEX0& TEX0, con
 			{
 				// if it looks like a texture shuffle, we might read up to +/- 8 pixels on either side.
 				GSVector4 adjusted_src_range(*src_range);
-				if (GSRendererHW::GetInstance()->IsPossibleTextureShuffle(src))
+				if (GSRendererHW::GetInstance()->IsPossibleTextureShuffle(dst, TEX0))
 					adjusted_src_range += GSVector4(-8.0f, 0.0f, 8.0f, 0.0f);
 
 				// don't forget to scale the copy range

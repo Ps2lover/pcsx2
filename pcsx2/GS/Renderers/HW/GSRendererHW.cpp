@@ -27,6 +27,7 @@ GSRendererHW::GSRendererHW()
 	, m_tc(new GSTextureCache())
 	, m_src(nullptr)
 	, m_reset(false)
+	, m_tex_is_fb(false)
 	, m_channel_shuffle(false)
 	, m_userhacks_tcoffset(false)
 	, m_userhacks_tcoffset_x(0)
@@ -171,10 +172,41 @@ void GSRendererHW::PurgeTextureCache()
 	m_tc->RemoveAll();
 }
 
-bool GSRendererHW::IsPossibleTextureShuffle(GSTextureCache::Source* src) const
+bool GSRendererHW::UpdateTexIsFB(GSTextureCache::Target* dst, const GIFRegTEX0& TEX0)
+{
+	if (GSConfig.AccurateBlendingUnit == AccBlendLevel::Minimum || !g_gs_device->Features().texture_barrier)
+		return false;
+
+	// Texture is actually the frame buffer. Stencil emulation to compute shadow (Jak series/tri-ace game)
+	// Will hit the "m_ps_sel.tex_is_fb = 1" path in the draw
+	if (m_vt.m_primclass == GS_TRIANGLE_CLASS)
+	{
+		if (m_context->FRAME.FBMSK == 0x00FFFFFF && TEX0.TBP0 == m_context->FRAME.Block())
+			m_tex_is_fb = true;
+	}
+	else if (m_vt.m_primclass == GS_SPRITE_CLASS)
+	{
+		if (TEX0.TBP0 == m_context->FRAME.Block() || TEX0.TBP0 == m_context->ZBUF.Block())
+		{
+			m_tex_is_fb = IsPossibleTextureShuffle(dst, TEX0);
+
+			if (!m_tex_is_fb && !m_vt.IsLinear())
+			{
+				// Make sure that we're not sampling away from the area we're rendering.
+				const GSVector4 diff(m_vt.m_min.p.xyxy(m_vt.m_max.p) - m_vt.m_min.t.xyxy(m_vt.m_max.t));
+				if ((diff < GSVector4(1.0f)).alltrue())
+					m_tex_is_fb = true;
+			}
+		}
+	}
+
+	return m_tex_is_fb;
+}
+
+bool GSRendererHW::IsPossibleTextureShuffle(GSTextureCache::Target* dst, const GIFRegTEX0& TEX0) const
 {
 	return (PRIM->TME && m_vt.m_primclass == GS_SPRITE_CLASS &&
-		src->m_32_bits_fmt && GSLocalMemory::m_psm[src->m_TEX0.PSM].bpp == 16 &&
+		dst->m_32_bits_fmt && GSLocalMemory::m_psm[TEX0.PSM].bpp == 16 &&
 		GSLocalMemory::m_psm[m_context->FRAME.PSM].bpp == 16);
 }
 
@@ -1332,6 +1364,7 @@ void GSRendererHW::Draw()
 
 	m_src = nullptr;
 	m_texture_shuffle = false;
+	m_tex_is_fb = false;
 
 	if (PRIM->TME)
 	{
@@ -2288,21 +2321,8 @@ void GSRendererHW::EmulateChannelShuffle(const GSTextureCache::Source* tex)
 		m_conf.tex = *tex->m_from_target;
 		if (m_conf.tex)
 		{
-			if (m_conf.tex == m_conf.rt)
-			{
-				// sample from fb instead
-				m_conf.tex = nullptr;
-				m_conf.ps.tex_is_fb = true;
-				m_conf.require_one_barrier = true;
-			}
-			else if (m_conf.tex == m_conf.ds)
-			{
-				// if depth testing is disabled, we don't need to copy, and can just unbind the depth buffer
-				// no need for a barrier for GL either, since it's not bound to depth and texture concurrently
-				// otherwise, the backend should recognise the hazard, and copy the buffer (D3D/Vulkan).
-				if (m_conf.depth.ztst == ZTST_ALWAYS)
-					m_conf.ds = nullptr;
-			}
+			// Identify when we're sampling the current buffer, defer fixup for later.
+			m_tex_is_fb |= (m_conf.tex == m_conf.rt || m_conf.tex == m_conf.ds);
 		}
 
 		// Replace current draw with a fullscreen sprite
@@ -3093,6 +3113,46 @@ void GSRendererHW::EmulateTextureSampler(const GSTextureCache::Source* tex)
 	if (!m_channel_shuffle)
 		m_conf.tex = tex->m_texture;
 	m_conf.pal = tex->m_palette;
+
+	// Detect framebuffer read that will need special handling
+	if (m_tex_is_fb)
+	{
+		if (m_conf.tex == m_conf.rt)
+		{
+			// This pattern is used by several games to emulate a stencil (shadow)
+			// Ratchet & Clank, Jak do alpha integer multiplication (tfx) which is mostly equivalent to +1/-1
+			// Tri-Ace (Star Ocean 3/RadiataStories/VP2) uses a palette to handle the +1/-1
+			GL_DBG("Source and Target are the same! Let's sample the framebuffer");
+			m_conf.tex = nullptr;
+			m_conf.ps.tex_is_fb = true;
+			if (m_prim_overlap == PRIM_OVERLAP_NO || !g_gs_device->Features().texture_barrier)
+				m_conf.require_one_barrier = true;
+			else
+				m_conf.require_full_barrier = true;
+		}
+		else if (m_conf.tex == m_conf.ds)
+		{
+			// if depth testing is disabled, we don't need to copy, and can just unbind the depth buffer
+			// no need for a barrier for GL either, since it's not bound to depth and texture concurrently
+			// otherwise, the backend should recognise the hazard, and copy the buffer (D3D/Vulkan).
+			if (m_conf.depth.ztst == ZTST_ALWAYS)
+			{
+				m_conf.ds = nullptr;
+				m_tex_is_fb = false;
+			}
+			else if (g_gs_device->Features().depth_fetch)
+			{
+				// sample from ds instead
+				m_conf.tex = nullptr;
+				m_conf.ps.tex_is_ds = true;
+			}
+		}
+		else
+		{
+			// weird... we detected a fb read, but didn't end up using it?
+			m_tex_is_fb = false;
+		}
+	}
 }
 
 void GSRendererHW::EmulateATST(float& AREF, GSHWDrawConfig::PSSelector& ps, bool pass_2)
@@ -3197,27 +3257,6 @@ void GSRendererHW::DrawPrims(GSTexture* rt, GSTexture* ds, GSTextureCache::Sourc
 		m_prim_overlap = PrimitiveOverlap();
 	else
 		m_prim_overlap = PRIM_OVERLAP_UNKNOW;
-
-	// Detect framebuffer read that will need special handling
-	if (features.texture_barrier && (m_context->FRAME.Block() == m_context->TEX0.TBP0) && PRIM->TME && GSConfig.AccurateBlendingUnit != AccBlendLevel::Minimum)
-	{
-		const u32 fb_mask = GSLocalMemory::m_psm[m_context->FRAME.PSM].fmsk;
-		if (((m_context->FRAME.FBMSK & fb_mask) == (fb_mask & 0x00FFFFFF)) && (m_vt.m_primclass == GS_TRIANGLE_CLASS))
-		{
-			// This pattern is used by several games to emulate a stencil (shadow)
-			// Ratchet & Clank, Jak do alpha integer multiplication (tfx) which is mostly equivalent to +1/-1
-			// Tri-Ace (Star Ocean 3/RadiataStories/VP2) uses a palette to handle the +1/-1
-			GL_DBG("Source and Target are the same! Let's sample the framebuffer");
-			m_conf.ps.tex_is_fb = 1;
-			m_conf.require_full_barrier = !features.framebuffer_fetch;
-		}
-		else if (m_prim_overlap != PRIM_OVERLAP_NO)
-		{
-			// Note: It is fine if the texture fits in a single GS page. First access will cache
-			// the page in the GS texture buffer.
-			GL_INS("ERROR: Source and Target are the same!");
-		}
-	}
 
 	EmulateTextureShuffleAndFbmask();
 
@@ -3662,13 +3701,6 @@ void GSRendererHW::DrawPrims(GSTexture* rt, GSTexture* ds, GSTextureCache::Sourc
 	m_conf.drawlist = (m_conf.require_full_barrier && m_vt.m_primclass == GS_SPRITE_CLASS) ? &m_drawlist : nullptr;
 
 	g_gs_device->RenderHW(m_conf);
-}
-
-bool GSRendererHW::IsDummyTexture() const
-{
-	// Texture is actually the frame buffer. Stencil emulation to compute shadow (Jak series/tri-ace game)
-	// Will hit the "m_ps_sel.tex_is_fb = 1" path in the draw
-	return g_gs_device->Features().texture_barrier && (m_context->FRAME.Block() == m_context->TEX0.TBP0) && PRIM->TME && GSConfig.AccurateBlendingUnit != AccBlendLevel::Minimum && m_vt.m_primclass == GS_TRIANGLE_CLASS && (m_context->FRAME.FBMSK == 0x00FFFFFF);
 }
 
 // hacks
