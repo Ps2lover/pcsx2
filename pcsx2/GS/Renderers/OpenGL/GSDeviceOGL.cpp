@@ -227,6 +227,7 @@ bool GSDeviceOGL::Create(HostDisplay* display)
 	m_features.bptc_textures = GL_VERSION_4_2 || GL_ARB_texture_compression_bptc || GL_EXT_texture_compression_bptc;
 	m_features.prefer_new_textures = GLLoader::is_gles;
 	m_features.framebuffer_fetch = GLLoader::found_framebuffer_fetch;
+	m_features.depth_fetch = GLLoader::found_depth_fetch;
 	m_features.dual_source_blend = GLLoader::has_dual_source_blend && !GSConfig.DisableDualSourceBlend;
 	m_features.clip_control = GLLoader::has_clip_control;
 	m_features.stencil_buffer = true;
@@ -1003,6 +1004,11 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view& entry, GLenum typ
 			else if (GLAD_GL_ARM_shader_framebuffer_fetch)
 				header += "#extension GL_ARM_shader_framebuffer_fetch : require\n";
 		}
+		if (m_features.depth_fetch)
+		{
+			if (GLAD_GL_ARM_shader_framebuffer_fetch_depth_stencil)
+				header += "#extension GL_ARM_shader_framebuffer_fetch_depth_stencil : require\n";
+		}
 
 		header += "precision highp float;\n";
 		header += "precision highp int;\n";
@@ -1049,6 +1055,11 @@ std::string GSDeviceOGL::GenGlslHeader(const std::string_view& entry, GLenum typ
 		header += "#define HAS_FRAMEBUFFER_FETCH 1\n";
 	else
 		header += "#define HAS_FRAMEBUFFER_FETCH 0\n";
+
+	if (m_features.depth_fetch)
+		header += "#define HAS_DEPTH_FETCH 1\n";
+	else
+		header += "#define HAS_DEPTH_FETCH 0\n";
 
 	if (GLLoader::has_clip_control)
 		header += "#define HAS_CLIP_CONTROL 1\n";
@@ -1144,6 +1155,7 @@ std::string GSDeviceOGL::GetPSSource(const PSSelector& sel)
 		+ format("#define PS_URBAN_CHAOS_HLE %d\n", sel.urban_chaos_hle)
 		+ format("#define PS_TALES_OF_ABYSS_HLE %d\n", sel.tales_of_abyss_hle)
 		+ format("#define PS_TEX_IS_FB %d\n", sel.tex_is_fb)
+		+ format("#define PS_TEX_IS_DS %d\n", sel.tex_is_ds)
 		+ format("#define PS_INVALID_TEX0 %d\n", sel.invalid_tex0)
 		+ format("#define PS_AEM %d\n", sel.aem)
 		+ format("#define PS_TFX %d\n", sel.tfx)

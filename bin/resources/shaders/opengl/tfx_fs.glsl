@@ -56,6 +56,12 @@ in SHADER
   #endif
 #endif
 
+#if HAS_DEPTH_FETCH && PS_TEX_IS_DS == 1
+  #if defined(GL_ARM_shader_framebuffer_fetch_depth_stencil)
+    #define LAST_FRAG_DEPTH gl_LastFragDepthARM
+  #endif
+#endif
+
 #if !PS_NO_COLOR
 #if !defined(DISABLE_DUAL_SOURCE) && !PS_NO_COLOR1
   // Same buffer but 2 colors for dual source blending
@@ -111,6 +117,8 @@ vec4 sample_c(vec2 uv)
 #else
     return texelFetch(RtSampler, ivec2(gl_FragCoord.xy), 0);
 #endif
+#elif PS_TEX_IS_DS == 1
+    return vec4(LAST_FRAG_DEPTH, 0.0f, 0.0f, 0.0f);
 #else
 
 #if PS_POINT_SAMPLER
@@ -276,6 +284,8 @@ int fetch_raw_depth()
 #else
     return int(texelFetch(RtSampler, ivec2(gl_FragCoord.xy), 0).r * multiplier);
 #endif
+#elif PS_TEX_IS_DS == 1
+    return int(LAST_FRAG_DEPTH * multiplier);
 #else
     return int(texelFetch(TextureSampler, ivec2(gl_FragCoord.xy), 0).r * multiplier);
 #endif
@@ -289,6 +299,8 @@ vec4 fetch_raw_color()
 #else
     return texelFetch(RtSampler, ivec2(gl_FragCoord.xy), 0);
 #endif
+#elif PS_TEX_IS_DS == 1
+    return vec4(LAST_FRAG_DEPTH, 0.0f, 0.0f, 0.0f);
 #else
     return texelFetch(TextureSampler, ivec2(gl_FragCoord.xy), 0);
 #endif
@@ -296,7 +308,11 @@ vec4 fetch_raw_color()
 
 vec4 fetch_c(ivec2 uv)
 {
+#if PS_TEX_IS_DS == 1
+    return vec4(LAST_FRAG_DEPTH, 0.0f, 0.0f, 0.0f);
+#else
     return texelFetch(TextureSampler, ivec2(uv), 0);
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////
