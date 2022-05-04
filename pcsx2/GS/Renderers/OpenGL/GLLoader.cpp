@@ -150,6 +150,7 @@ namespace GLLoader
 	bool has_dual_source_blend = false;
 	bool has_clip_control = true;
 	bool found_framebuffer_fetch = false;
+	bool found_depth_fetch = false;
 	bool found_geometry_shader = true; // we require GL3.3 so geometry must be supported by default
 	bool found_GL_ARB_clear_texture = false;
 	// DX11 GPU
@@ -283,10 +284,12 @@ namespace GLLoader
 
 			has_dual_source_blend = GLAD_GL_VERSION_3_2 || GLAD_GL_ARB_blend_func_extended;
 			found_framebuffer_fetch = GLAD_GL_EXT_shader_framebuffer_fetch || GLAD_GL_ARM_shader_framebuffer_fetch;
+			found_depth_fetch = found_framebuffer_fetch && GLAD_GL_ARM_shader_framebuffer_fetch_depth_stencil;
 			if (found_framebuffer_fetch && GSConfig.DisableFramebufferFetch)
 			{
 				Console.Warning("Framebuffer fetch was found but is disabled. This will reduce performance.");
 				found_framebuffer_fetch = false;
+				found_depth_fetch = false;
 			}
 		}
 
