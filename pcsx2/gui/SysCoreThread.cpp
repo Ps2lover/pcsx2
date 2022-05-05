@@ -197,12 +197,9 @@ void SysCoreThread::ApplySettings(const Pcsx2Config& src)
 	// handle GS setting changes
 	if (GetMTGS().IsOpen() && gs_settings_changed)
 	{
-		// if by change we reopen the GS, the window handles will invalidate.
-		// so, we should block here until GS has finished reinitializing, if needed.
 		Console.WriteLn("Applying GS settings...");
 		GetMTGS().ApplySettings();
 		GetMTGS().SetVSync(EmuConfig.GetEffectiveVsyncMode());
-		GetMTGS().WaitGS();
 	}
 }
 
@@ -339,6 +336,9 @@ void SysCoreThread::TearDownSystems(SystemsMask systemsToTearDown)
 	if (systemsToTearDown & System_PAD) PADclose();
 	if (systemsToTearDown & System_SPU2) SPU2close();
 	if (systemsToTearDown & System_MCD) FileMcd_EmuClose();
+
+	if (GetMTGS().IsOpen())
+		GetMTGS().WaitGS();
 
 	PerformanceMetrics::SetCPUThread(Threading::ThreadHandle());
 }

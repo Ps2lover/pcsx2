@@ -948,9 +948,6 @@ ExtraWndProcResult StatusWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 			// Note - I never managed to see this case entered, but SET/KILLFOCUS are entered. - avih 2014-04-16
 			PrepareActivityState(LOWORD(wParam) != WA_INACTIVE);
 			break;
-		case WM_DESTROY:
-			QueueKeyEvent(VK_ESCAPE, HostKeyEvent::Type::KeyPressed);
-			break;
 		case WM_KILLFOCUS:
 			PrepareActivityState(false);
 			break;
