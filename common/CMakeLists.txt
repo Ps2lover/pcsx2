@@ -31,6 +31,7 @@ target_sources(common PRIVATE
 	SettingsWrapper.cpp
 	StringHelpers.cpp
 	StringUtil.cpp
+	TextureDecompress.cpp
 	Timer.cpp
 	WindowInfo.cpp
 	emitter/bmi.cpp
@@ -89,6 +90,7 @@ target_sources(common PRIVATE
 	StringHelpers.h
 	StringUtil.h
 	Timer.h
+	TextureDecompress.h
 	Threading.h
 	TraceLog.h
 	WindowInfo.h
