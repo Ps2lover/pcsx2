@@ -1074,6 +1074,7 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 #endif
 #ifdef PCSX2_CORE
 	SettingsWrapBitBool(EnableGameFixes);
+	SettingsWrapBitBool(SaveStateOnShutdown);
 #endif
 	SettingsWrapBitBool(ConsoleToStdio);
 	SettingsWrapBitBool(HostFs);
