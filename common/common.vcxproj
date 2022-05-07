@@ -71,6 +71,7 @@
     <ClCompile Include="StackWalker.cpp" />
     <ClCompile Include="StringUtil.cpp" />
     <ClCompile Include="SettingsWrapper.cpp" />
+    <ClCompile Include="TextureDecompress.cpp" />
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="VirtualMemory.cpp" />
     <ClCompile Include="Vulkan\vk_mem_alloc.cpp" />
@@ -160,6 +161,7 @@
     <ClInclude Include="RedtapeWindows.h" />
     <ClInclude Include="SafeArray.h" />
     <ClInclude Include="StringHelpers.h" />
+    <ClInclude Include="TextureDecompress.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Vulkan\Builders.h" />
     <ClInclude Include="Vulkan\Context.h" />
