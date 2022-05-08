@@ -117,6 +117,12 @@ namespace VMManager
 	/// Saves state to the specified slot.
 	bool SaveStateToSlot(s32 slot, bool zip_on_thread = true);
 
+	/// Saves state to a memory buffer, which can be later flush to file.
+	std::vector<u8> SaveCompressedStateToBuffer();
+
+	/// Waits until all compressing save states have finished saving to disk.
+	void WaitForSaveStateFlush();
+
 	/// Returns the current limiter mode.
 	LimiterModeType GetLimiterMode();
 
