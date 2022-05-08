@@ -942,6 +942,28 @@ bool SaveState_ZipToDisk(std::unique_ptr<ArchiveEntryList> srclist, std::unique_
 	return true;
 }
 
+std::vector<u8> SaveState_ZipToMemory(std::unique_ptr<ArchiveEntryList> srclist, std::unique_ptr<SaveStateScreenshotData> screenshot)
+{
+	std::vector<u8> ret;
+
+	ZipSourceVector zs;
+	zip_t* zf = zs.Open(ZIP_CREATE | ZIP_TRUNCATE);
+	if (!zf)
+		return ret;
+
+	// discard zip file if we fail saving something
+	if (!SaveState_AddToZip(zf, srclist.get(), screenshot.get()))
+	{
+		zip_discard(zf);
+		return ret;
+	}
+
+	// should enable RVO here
+	zip_close(zf);
+	ret = zs.TakeBuffer();
+	return ret;
+}
+
 bool SaveState_ReadScreenshot(const std::string& filename, u32* out_width, u32* out_height, std::vector<u32>* out_pixels)
 {
 	zip_error_t ze = {};

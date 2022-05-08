@@ -59,6 +59,7 @@ class ArchiveEntryList;
 extern std::unique_ptr<ArchiveEntryList> SaveState_DownloadState();
 extern std::unique_ptr<SaveStateScreenshotData> SaveState_SaveScreenshot();
 extern bool SaveState_ZipToDisk(std::unique_ptr<ArchiveEntryList> srclist, std::unique_ptr<SaveStateScreenshotData> screenshot, const char* filename);
+extern std::vector<u8> SaveState_ZipToMemory(std::unique_ptr<ArchiveEntryList> srclist, std::unique_ptr<SaveStateScreenshotData> screenshot);
 extern bool SaveState_ReadScreenshot(const std::string& filename, u32* out_width, u32* out_height, std::vector<u32>* out_pixels);
 extern void SaveState_UnzipFromDisk(const std::string& filename);
 
