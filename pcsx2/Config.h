@@ -1002,7 +1002,7 @@ struct Pcsx2Config
 
 	// TODO: Make these std::string when we remove wxFile...
 	std::string FullpathToBios() const;
-	wxString FullpathToMcd(uint slot) const;
+	std::string FullpathToMcd(uint slot) const;
 
 	bool MultitapEnabled(uint port) const;
 

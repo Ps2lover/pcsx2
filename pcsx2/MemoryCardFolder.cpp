@@ -23,21 +23,20 @@
 #include "Config.h"
 
 #include "common/FileSystem.h"
+#include "common/Path.h"
 #include "common/StringUtil.h"
 
 #include "fmt/core.h"
 #include "ryml_std.hpp"
 #include "ryml.hpp"
-#include "common/Path.h"
 
 #include "svnrev.h"
 
 #include <sstream>
+#include <mutex>
 #include <optional>
 
-bool RemoveDirectory(const wxString& dirname);
-
-ryml::Tree parseYamlStr(const std::string& str)
+static ryml::Tree parseYamlStr(const std::string& str)
 {
 	ryml::Callbacks rymlCallbacks = ryml::get_callbacks();
 	rymlCallbacks.m_error = [](const char* msg, size_t msg_len, ryml::Location loc, void*) {
@@ -56,16 +55,11 @@ ryml::Tree parseYamlStr(const std::string& str)
 }
 
 // A helper function to parse the YAML file
-std::optional<ryml::Tree> loadYamlFile(const wxString& filePath)
+static std::optional<ryml::Tree> loadYamlFile(const char* filePath)
 {
 	try
 	{
-		auto file = FileSystem::OpenManagedCFile(StringUtil::wxStringToUTF8String(filePath).c_str(), "rb");
-		if (!file)
-		{
-			return std::nullopt;
-		}
-		std::optional<std::string> buffer = FileSystem::ReadFileToString(file.get());
+		std::optional<std::string> buffer = FileSystem::ReadFileToString(filePath);
 		if (!buffer.has_value())
 		{
 			return std::nullopt;
@@ -75,19 +69,56 @@ std::optional<ryml::Tree> loadYamlFile(const wxString& filePath)
 	}
 	catch (const std::exception& e)
 	{
-		Console.Error(fmt::format("[MemoryCard] Error occured when parsing folder memory card at path '{}': {}", StringUtil::wxStringToUTF8String(filePath), e.what()));
+		Console.Error(fmt::format("[MemoryCard] Error occured when parsing folder memory card at path '{}': {}", filePath, e.what()));
 		ryml::reset_callbacks();
 		return std::nullopt;
 	}
 }
 
 /// A helper function to write a YAML file
-void SaveYAMLToFile(const wxString& filename, const ryml::NodeRef& node)
+static void SaveYAMLToFile(const char* filename, const ryml::NodeRef& node)
 {
-	auto file = FileSystem::OpenCFile(StringUtil::wxStringToUTF8String(filename).c_str(), "w");
+	auto file = FileSystem::OpenCFile(filename, "w");
 	ryml::emit(node, file);
 	std::fflush(file);
 	std::fclose(file);
+}
+
+static constexpr time_t MEMORY_CARD_FILE_ENTRY_DATE_TIME_OFFSET = 60 * 60 * 9; // 9 hours from UTC
+
+MemoryCardFileEntryDateTime MemoryCardFileEntryDateTime::FromTime(time_t time)
+{
+	// TODO: Is this safe with regard to DST?
+	time += MEMORY_CARD_FILE_ENTRY_DATE_TIME_OFFSET;
+
+	struct tm converted = {};
+#ifdef _MSC_VER
+	gmtime_s(&converted, &time);
+#else
+	gmtime_r(&time, &converted);
+#endif
+
+	MemoryCardFileEntryDateTime ret;
+	ret.unused = 0;
+	ret.second = converted.tm_sec;
+	ret.minute = converted.tm_min;
+	ret.hour = converted.tm_hour;
+	ret.day = converted.tm_mday;
+	ret.month = converted.tm_mon + 1;
+	ret.year = converted.tm_year + 1900;
+	return ret;
+}
+
+time_t MemoryCardFileEntryDateTime::ToTime() const
+{
+	struct tm converted = {};
+	converted.tm_sec = second;
+	converted.tm_min = minute;
+	converted.tm_hour = hour;
+	converted.tm_mday = day;
+	converted.tm_mon = std::max(static_cast<int>(month) - 1, 0);
+	converted.tm_year = std::max(static_cast<int>(year) - 1900, 0);
+	return mktime(&converted);
 }
 
 FolderMemoryCard::FolderMemoryCard()
@@ -98,7 +129,7 @@ FolderMemoryCard::FolderMemoryCard()
 	m_framesUntilFlush = 0;
 	m_timeLastWritten = 0;
 	m_filteringEnabled = false;
-	m_filteringString = L"";
+	m_filteringString = {};
 }
 
 void FolderMemoryCard::InitializeInternalData()
@@ -117,7 +148,7 @@ void FolderMemoryCard::InitializeInternalData()
 	m_framesUntilFlush = 0;
 	m_performFileWrites = true;
 	m_filteringEnabled = false;
-	m_filteringString = L"";
+	m_filteringString = {};
 }
 
 bool FolderMemoryCard::IsFormatted() const
@@ -126,40 +157,39 @@ bool FolderMemoryCard::IsFormatted() const
 	return m_superBlock.raw[0x16] == 0x6F;
 }
 
-void FolderMemoryCard::Open(const bool enableFiltering, const wxString& filter)
+void FolderMemoryCard::Open(const bool enableFiltering, std::string filter)
 {
 	Open(EmuConfig.FullpathToMcd(m_slot), EmuConfig.Mcd[m_slot], 0, enableFiltering, filter, false);
 }
 
-void FolderMemoryCard::Open(const wxString& fullPath, const Pcsx2Config::McdOptions& mcdOptions, const u32 sizeInClusters, const bool enableFiltering, const wxString& filter, bool simulateFileWrites)
+void FolderMemoryCard::Open(std::string fullPath, const Pcsx2Config::McdOptions& mcdOptions, const u32 sizeInClusters, const bool enableFiltering, std::string filter, bool simulateFileWrites)
 {
 	InitializeInternalData();
 	m_performFileWrites = !simulateFileWrites;
 
-	wxFileName configuredFileName(fullPath);
-	m_folderName = wxFileName(configuredFileName.GetFullPath() + L"/");
-	wxString str(configuredFileName.GetFullPath());
+	m_folderName = Path::NormalizeStdString(fullPath);
+	std::string_view str(fullPath);
 	bool disabled = false;
 
 	if (mcdOptions.Enabled && mcdOptions.Type == MemoryCardType::Folder)
 	{
-		if (configuredFileName.GetFullName().IsEmpty())
+		if (fullPath.empty())
 		{
-			str = L"[empty filename]";
+			str = "[empty filename]";
 			disabled = true;
 		}
-		if (!disabled && configuredFileName.FileExists())
+		if (!disabled && FileSystem::FileExists(fullPath.c_str()))
 		{
-			str = L"[is file, should be folder]";
+			str = "[is file, should be folder]";
 			disabled = true;
 		}
 
 		// if nothing exists at a valid location, create a directory for the memory card
-		if (!disabled && m_performFileWrites && !m_folderName.DirExists())
+		if (!disabled && m_performFileWrites && !FileSystem::DirectoryExists(fullPath.c_str()))
 		{
-			if (!m_folderName.Mkdir())
+			if (!FileSystem::CreateDirectoryPath(fullPath.c_str(), false))
 			{
-				str = L"[couldn't create folder]";
+				str = "[couldn't create folder]";
 				disabled = true;
 			}
 		}
@@ -170,7 +200,8 @@ void FolderMemoryCard::Open(const wxString& fullPath, const Pcsx2Config::McdOpti
 		return;
 	}
 
-	Console.WriteLn(disabled ? Color_Gray : Color_Green, L"McdSlot %u: [Folder] " + str, m_slot);
+	Console.WriteLn(disabled ? Color_Gray : Color_Green, "McdSlot %u: [Folder] %.*s",
+		m_slot, static_cast<int>(str.size()), str.data());
 	if (disabled)
 		return;
 
@@ -201,7 +232,7 @@ void FolderMemoryCard::Close(bool flush)
 	m_fileMetadataQuickAccess.clear();
 }
 
-bool FolderMemoryCard::ReIndex(bool enableFiltering, const wxString& filter)
+bool FolderMemoryCard::ReIndex(bool enableFiltering, const std::string& filter)
 {
 	if (!m_isEnabled)
 	{
@@ -218,16 +249,16 @@ bool FolderMemoryCard::ReIndex(bool enableFiltering, const wxString& filter)
 	return false;
 }
 
-void FolderMemoryCard::LoadMemoryCardData(const u32 sizeInClusters, const bool enableFiltering, const wxString& filter)
+void FolderMemoryCard::LoadMemoryCardData(const u32 sizeInClusters, const bool enableFiltering, const std::string& filter)
 {
 	bool formatted = false;
 
 	// read superblock if it exists
-	wxFileName superBlockFileName(m_folderName.GetPath(), L"_pcsx2_superblock");
-	if (superBlockFileName.FileExists())
+	const std::string superBlockFileName(Path::CombineStdString(m_folderName, "_pcsx2_superblock"));
+	if (FileSystem::FileExists(superBlockFileName.c_str()))
 	{
-		wxFFile superBlockFile(superBlockFileName.GetFullPath().c_str(), L"rb");
-		if (superBlockFile.IsOpened() && superBlockFile.Read(&m_superBlock.raw, sizeof(m_superBlock.raw)) >= sizeof(m_superBlock.data))
+		auto superBlockFile = FileSystem::OpenManagedCFile(superBlockFileName.c_str(), "rb");
+		if (superBlockFile && std::fread(&m_superBlock.raw, sizeof(m_superBlock.raw), 1, superBlockFile.get()) == 1)
 		{
 			formatted = IsFormatted();
 		}
@@ -244,17 +275,17 @@ void FolderMemoryCard::LoadMemoryCardData(const u32 sizeInClusters, const bool e
 	{
 		if (enableFiltering)
 		{
-			Console.WriteLn(Color_Green, L"(FolderMcd) Indexing slot %u with filter \"%s\".", m_slot, WX_STR(filter));
+			Console.WriteLn(Color_Green, "(FolderMcd) Indexing slot %u with filter \"%s\".", m_slot, filter.c_str());
 		}
 		else
 		{
-			Console.WriteLn(Color_Green, L"(FolderMcd) Indexing slot %u without filter.", m_slot);
+			Console.WriteLn(Color_Green, "(FolderMcd) Indexing slot %u without filter.", m_slot);
 		}
 
 		CreateFat();
 		CreateRootDir();
 		MemoryCardFileEntry* const rootDirEntry = &m_fileEntryDict[m_superBlock.data.rootdir_cluster].entries[0];
-		AddFolder(rootDirEntry, m_folderName.GetPath(), nullptr, enableFiltering, filter);
+		AddFolder(rootDirEntry, m_folderName, nullptr, enableFiltering, filter);
 
 #ifdef DEBUG_WRITE_FOLDER_CARD_IN_MEMORY_TO_FILE_ON_CHANGE
 		WriteToFile(m_folderName.GetFullPath().RemoveLast() + L"-debug_" + wxDateTime::Now().Format(L"%Y-%m-%d-%H-%M-%S") + L"_load.ps2");
@@ -409,7 +440,7 @@ MemoryCardFileEntry* FolderMemoryCard::AppendFileEntryToDir(const MemoryCardFile
 	return newFileEntry;
 }
 
-bool FilterMatches(const wxString& fileName, const wxString& filter)
+static bool FilterMatches(const std::string& fileName, const std::string& filter)
 {
 	size_t start = 0;
 	size_t len = filter.Len();
@@ -433,31 +464,27 @@ bool FilterMatches(const wxString& fileName, const wxString& filter)
 	return false;
 }
 
-bool FolderMemoryCard::AddFolder(MemoryCardFileEntry* const dirEntry, const wxString& dirPath, MemoryCardFileMetadataReference* parent, const bool enableFiltering, const wxString& filter)
+bool FolderMemoryCard::AddFolder(MemoryCardFileEntry* const dirEntry, const std::string& dirPath, MemoryCardFileMetadataReference* parent /* = nullptr */, const bool enableFiltering /* = false */, const std::string_view& filter /* = "" */)
 {
-	if (wxDir::Exists(dirPath))
+	if (FileSystem::DirectoryExists(dirPath.c_str()))
 	{
-
-		wxString localFilter;
+		std::string localFilter;
 		if (enableFiltering)
 		{
-			bool hasFilter = !filter.IsEmpty();
+			bool hasFilter = !filter.empty();
 			if (hasFilter)
 			{
-				localFilter = L"DATA-SYSTEM/BWNETCNF/" + filter;
+				localFilter = fmt::format("DATA-SYSTEM/BWNETCNF/{}", filter);
 			}
 			else
 			{
-				localFilter = L"DATA-SYSTEM/BWNETCNF";
+				localFilter = "DATA-SYSTEM/BWNETCNF";
 			}
 		}
 
 		int entryNumber = 2; // include . and ..
 		for (const auto& file : GetOrderedFiles(dirPath))
 		{
-
-			wxFileName fileInfo(dirPath, file.m_fileName);
-
 			if (file.m_isFile)
 			{
 				// don't load files in the root dir if we're filtering; no official software stores files there
@@ -480,34 +507,28 @@ bool FolderMemoryCard::AddFolder(MemoryCardFileEntry* const dirEntry, const wxSt
 					continue;
 				}
 
+				// is a subdirectory
+				const std::string filePath(Path::CombineStdString(dirPath, file.m_fileName));
+
 				// make sure we have enough space on the memcard for the directory
-				const u32 newNeededClusters = CalculateRequiredClustersOfDirectory(dirPath + L"/" + file.m_fileName) + ((dirEntry->entry.data.length % 2) == 0 ? 1 : 0);
+				const u32 newNeededClusters = CalculateRequiredClustersOfDirectory(filePath) + ((dirEntry->entry.data.length % 2) == 0 ? 1 : 0);
 				if (newNeededClusters > GetAmountFreeDataClusters())
 				{
 					Console.Warning(GetCardFullMessage(file.m_fileName));
 					continue;
 				}
 
-				// is a subdirectory
-				fileInfo.AppendDir(fileInfo.GetFullName());
-				fileInfo.SetName(L"");
-				fileInfo.ClearExt();
-
 				// add entry for subdir in parent dir
 				MemoryCardFileEntry* newDirEntry = AppendFileEntryToDir(dirEntry);
 				dirEntry->entry.data.length++;
 
 				// set metadata
-				wxFileName metaFileName(dirPath, L"_pcsx2_meta_directory");
-				metaFileName.AppendDir(file.m_fileName);
-				wxFFile metaFile;
-				if (metaFileName.FileExists() && metaFile.Open(metaFileName.GetFullPath(), L"rb"))
+				const std::string metaFileName(Path::CombineStdString(Path::CombineStdString(dirPath, "_pcsx2_meta_directory"), file.m_fileName));
+				if (auto metaFile = FileSystem::OpenManagedCFile(metaFileName.c_str(), "rb"); metaFile)
 				{
-					size_t bytesRead = metaFile.Read(&newDirEntry->entry.raw, sizeof(newDirEntry->entry.raw));
-					metaFile.Close();
-					if (bytesRead < 0x60)
+					if (std::fread(&newDirEntry->entry.raw, 1, sizeof(newDirEntry->entry.raw), metaFile.get()) < 0x60)
 					{
-						strcpy(reinterpret_cast<char*>(newDirEntry->entry.data.name), file.m_fileName.mbc_str());
+						StringUtil::Strlcpy(reinterpret_cast<char*>(newDirEntry->entry.data.name), file.m_fileName.c_str(), sizeof(newDirEntry->entry.data.name));
 					}
 				}
 				else
@@ -515,7 +536,7 @@ bool FolderMemoryCard::AddFolder(MemoryCardFileEntry* const dirEntry, const wxSt
 					newDirEntry->entry.data.mode = MemoryCardFileEntry::DefaultDirMode;
 					newDirEntry->entry.data.timeCreated = MemoryCardFileEntryDateTime::FromTime(file.m_timeCreated);
 					newDirEntry->entry.data.timeModified = MemoryCardFileEntryDateTime::FromTime(file.m_timeModified);
-					strcpy(reinterpret_cast<char*>(newDirEntry->entry.data.name), file.m_fileName.mbc_str());
+					StringUtil::Strlcpy(reinterpret_cast<char*>(newDirEntry->entry.data.name), file.m_fileName.c_str(), sizeof(newDirEntry->entry.data.name));
 				}
 
 				// create new cluster for . and .. entries
@@ -540,7 +561,7 @@ bool FolderMemoryCard::AddFolder(MemoryCardFileEntry* const dirEntry, const wxSt
 				++entryNumber;
 
 				// and add all files in subdir
-				AddFolder(newDirEntry, fileInfo.GetFullPath(), dirRef);
+				AddFolder(newDirEntry, filePath, dirRef);
 			}
 		}
 
@@ -550,23 +571,22 @@ bool FolderMemoryCard::AddFolder(MemoryCardFileEntry* const dirEntry, const wxSt
 	return false;
 }
 
-bool FolderMemoryCard::AddFile(MemoryCardFileEntry* const dirEntry, const wxString& dirPath, const EnumeratedFileEntry& fileEntry, MemoryCardFileMetadataReference* parent)
+bool FolderMemoryCard::AddFile(MemoryCardFileEntry* const dirEntry, const std::string& dirPath, const EnumeratedFileEntry& fileEntry, MemoryCardFileMetadataReference* parent)
 {
-	wxFileName relativeFilePath(dirPath, fileEntry.m_fileName);
-	relativeFilePath.MakeRelativeTo(m_folderName.GetPath());
+	const std::string filePath(Path::CombineStdString(dirPath, fileEntry.m_fileName));
+	pxAssertMsg(StringUtil::StartsWith(filePath, m_folderName.c_str()), "Full file path starts with MC folder path");
+	const std::string relativeFilePath(filePath.substr(m_folderName.length() + 1));
 
-	wxFileName fileInfo(dirPath, fileEntry.m_fileName);
-	wxFFile file(fileInfo.GetFullPath(), L"rb");
-	if (file.IsOpened())
+	if (auto file = FileSystem::OpenManagedCFile(filePath.c_str(), "rb"); file)
 	{
 		// make sure we have enough space on the memcard to hold the data
 		const u32 clusterSize = m_superBlock.data.pages_per_cluster * m_superBlock.data.page_len;
-		const u32 filesize = file.Length();
+		const u32 filesize = static_cast<u32>(std::clamp<s64>(FileSystem::FSize64(file.get()), 0, std::numeric_limits<u32>::max()));
 		const u32 countClusters = (filesize % clusterSize) != 0 ? (filesize / clusterSize + 1) : (filesize / clusterSize);
 		const u32 newNeededClusters = (dirEntry->entry.data.length % 2) == 0 ? countClusters + 1 : countClusters;
 		if (newNeededClusters > GetAmountFreeDataClusters())
 		{
-			Console.Warning(GetCardFullMessage(relativeFilePath.GetFullPath()));
+			Console.Warning(GetCardFullMessage(relativeFilePath));
 			return false;
 		}
 
@@ -575,16 +595,13 @@ bool FolderMemoryCard::AddFile(MemoryCardFileEntry* const dirEntry, const wxStri
 		// set file entry metadata
 		memset(newFileEntry->entry.raw, 0x00, sizeof(newFileEntry->entry.raw));
 
-		wxFileName metaFileName(dirPath, fileEntry.m_fileName);
-		metaFileName.AppendDir(L"_pcsx2_meta");
-		wxFFile metaFile;
-		if (metaFileName.FileExists() && metaFile.Open(metaFileName.GetFullPath(), L"rb"))
+		std::string metaFileName(Path::CombineStdString(Path::CombineStdString(dirPath, "_pcsx2_meta"), fileEntry.m_fileName));
+		if (auto metaFile = FileSystem::OpenManagedCFile(metaFileName.c_str(), "rb"); metaFile)
 		{
-			size_t bytesRead = metaFile.Read(&newFileEntry->entry.raw, sizeof(newFileEntry->entry.raw));
-			metaFile.Close();
+			size_t bytesRead = std::fread(&newFileEntry->entry.raw, 1, sizeof(newFileEntry->entry.raw), metaFile.get());
 			if (bytesRead < 0x60)
 			{
-				strcpy(reinterpret_cast<char*>(newFileEntry->entry.data.name), fileEntry.m_fileName.mbc_str());
+				StringUtil::Strlcpy(reinterpret_cast<char*>(newFileEntry->entry.data.name), fileEntry.m_fileName.c_str(), sizeof(newFileEntry->entry.data.name));
 			}
 		}
 		else
@@ -592,7 +609,7 @@ bool FolderMemoryCard::AddFile(MemoryCardFileEntry* const dirEntry, const wxStri
 			newFileEntry->entry.data.mode = MemoryCardFileEntry::DefaultFileMode;
 			newFileEntry->entry.data.timeCreated = MemoryCardFileEntryDateTime::FromTime(fileEntry.m_timeCreated);
 			newFileEntry->entry.data.timeModified = MemoryCardFileEntryDateTime::FromTime(fileEntry.m_timeModified);
-			strcpy(reinterpret_cast<char*>(newFileEntry->entry.data.name), fileEntry.m_fileName.mbc_str());
+			StringUtil::Strlcpy(reinterpret_cast<char*>(newFileEntry->entry.data.name), fileEntry.m_fileName.c_str(), sizeof(newFileEntry->entry.data.name));
 		}
 
 		newFileEntry->entry.data.length = filesize;
@@ -617,7 +634,7 @@ bool FolderMemoryCard::AddFile(MemoryCardFileEntry* const dirEntry, const wxStri
 			newFileEntry->entry.data.cluster = MemoryCardFileEntry::EmptyFileCluster;
 		}
 
-		file.Close();
+		file.reset();
 
 		MemoryCardFileMetadataReference* fileRef = AddFileEntryToMetadataQuickAccess(newFileEntry, parent);
 		if (fileRef != nullptr)
@@ -633,46 +650,37 @@ bool FolderMemoryCard::AddFile(MemoryCardFileEntry* const dirEntry, const wxStri
 	}
 	else
 	{
-		Console.WriteLn(L"(FolderMcd) Could not open file: %s", WX_STR(relativeFilePath.GetFullPath()));
+		Console.WriteLn("(FolderMcd) Could not open file: %s", relativeFilePath.c_str());
 		return false;
 	}
 }
 
-u32 FolderMemoryCard::CalculateRequiredClustersOfDirectory(const wxString& dirPath) const
+u32 FolderMemoryCard::CalculateRequiredClustersOfDirectory(const std::string& dirPath) const
 {
 	const u32 clusterSize = m_superBlock.data.pages_per_cluster * m_superBlock.data.page_len;
 	u32 requiredFileEntryPages = 2;
 	u32 requiredClusters = 0;
 
 	// No need to read the index file as we are only counting space required; order of files is irrelevant.
-	wxDir dir(dirPath);
-	wxString fileName;
-	bool hasNext = dir.GetFirst(&fileName);
-	while (hasNext)
+	FileSystem::FindResultsArray files;
+	FileSystem::FindFiles(dirPath.c_str(), "*", FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_FOLDERS | FILESYSTEM_FIND_HIDDEN_FILES | FILESYSTEM_FIND_RELATIVE_PATHS, &files);
+	for (const FILESYSTEM_FIND_DATA& fd : files)
 	{
-		if (fileName.StartsWith(L"_pcsx2_"))
-		{
-			hasNext = dir.GetNext(&fileName);
+		if (StringUtil::StartsWith(fd.FileName, "_pcsx2_"))
 			continue;
-		}
 
 		++requiredFileEntryPages;
-		wxFileName file(dirPath, fileName);
-		wxString path = file.GetFullPath();
-		bool isFile = wxFile::Exists(path);
 
-		if (isFile)
+		if (!(fd.Attributes & FILESYSTEM_FILE_ATTRIBUTE_DIRECTORY))
 		{
-			const u32 filesize = file.GetSize().GetValue();
+			const u32 filesize = static_cast<u32>(std::min<s64>(fd.Size, std::numeric_limits<u32>::max()));
 			const u32 countClusters = (filesize % clusterSize) != 0 ? (filesize / clusterSize + 1) : (filesize / clusterSize);
 			requiredClusters += countClusters;
 		}
 		else
 		{
-			requiredClusters += CalculateRequiredClustersOfDirectory(path);
+			requiredClusters += CalculateRequiredClustersOfDirectory(Path::CombineStdString(dirPath, fd.FileName));
 		}
-
-		hasNext = dir.GetNext(&fileName);
 	}
 
 	return requiredClusters + requiredFileEntryPages / 2 + (requiredFileEntryPages % 2 == 0 ? 0 : 1);
@@ -919,17 +927,15 @@ bool FolderMemoryCard::ReadFromFile(u8* dest, u32 adr, u32 dataLength)
 	if (it != m_fileMetadataQuickAccess.end())
 	{
 		const u32 clusterNumber = it->second.consecutiveCluster;
-		wxFFile* file = m_lastAccessedFile.ReOpen(m_folderName, &it->second);
-		if (file->IsOpened())
+		std::FILE* file = m_lastAccessedFile.ReOpen(m_folderName, &it->second);
+		if (file)
 		{
 			const u32 clusterOffset = (page % 2) * PageSize + offset;
 			const u32 fileOffset = clusterNumber * ClusterSize + clusterOffset;
 
-			if (fileOffset != file->Tell())
-			{
-				file->Seek(fileOffset);
-			}
-			size_t bytesRead = file->Read(dest, dataLength);
+			size_t bytesRead = 0;
+			if (fileOffset == FileSystem::FTell64(file) || FileSystem::FSeek64(file, fileOffset, SEEK_SET) == 0)
+				bytesRead = std::fread(dest, 1, dataLength, file);
 
 			// if more bytes were requested than actually exist, fill the rest with 0xFF
 			if (bytesRead < dataLength)
@@ -1207,11 +1213,10 @@ void FolderMemoryCard::FlushSuperBlock()
 {
 	if (FlushBlock(0) && m_performFileWrites)
 	{
-		wxFileName superBlockFileName(m_folderName.GetPath(), L"_pcsx2_superblock");
-		wxFFile superBlockFile(superBlockFileName.GetFullPath().c_str(), L"wb");
-		if (superBlockFile.IsOpened())
+		const std::string superBlockFileName(Path::CombineStdString(m_folderName, "_pcsx2_superblock"));
+		if (auto superBlockFile = FileSystem::OpenManagedCFile(superBlockFileName.c_str(), "wb"); superBlockFile)
 		{
-			superBlockFile.Write(&m_superBlock.raw, sizeof(m_superBlock.raw));
+			std::fwrite(&m_superBlock.raw, sizeof(m_superBlock.raw), 1, superBlockFile.get());
 		}
 	}
 }
@@ -1228,7 +1233,7 @@ void FolderMemoryCard::FlushFileEntries()
 	}
 }
 
-void FolderMemoryCard::FlushFileEntries(const u32 dirCluster, const u32 remainingFiles, const wxString& dirPath, MemoryCardFileMetadataReference* parent)
+void FolderMemoryCard::FlushFileEntries(const u32 dirCluster, const u32 remainingFiles, const std::string& dirPath, MemoryCardFileMetadataReference* parent)
 {
 	// flush the current cluster
 	FlushCluster(dirCluster + m_superBlock.data.alloc_offset);
@@ -1248,38 +1253,38 @@ void FolderMemoryCard::FlushFileEntries(const u32 dirCluster, const u32 remainin
 					char cleanName[sizeof(entry->entry.data.name)];
 					memcpy(cleanName, (const char*)entry->entry.data.name, sizeof(cleanName));
 					bool filenameCleaned = FileAccessHelper::CleanMemcardFilename(cleanName);
-					const wxString subDirName = wxString::FromAscii((const char*)cleanName);
-					const wxString subDirPath = dirPath + L"/" + subDirName;
+					const std::string subDirPath(Path::CombineStdString(dirPath, cleanName));
 
 					if (m_performFileWrites)
 					{
 						// if this directory has nonstandard metadata, write that to the file system
-						wxFileName metaFileName(m_folderName.GetFullPath() + subDirPath, L"_pcsx2_meta_directory");
-						if (!metaFileName.DirExists())
+						const std::string fullSubDirPath(Path::CombineStdString(m_folderName, subDirPath));
+						std::string metaFileName(Path::CombineStdString(fullSubDirPath, "_pcsx2_meta_directory"));
+						if (!FileSystem::DirectoryExists(fullSubDirPath.c_str()))
 						{
-							metaFileName.Mkdir();
+							FileSystem::CreateDirectoryPath(fullSubDirPath.c_str(), false);
 						}
 
+						// TODO: This logic doesn't make sense. If it's not a directory, create it, then open it as a file?!
 						if (filenameCleaned || entry->entry.data.mode != MemoryCardFileEntry::DefaultDirMode || entry->entry.data.attr != 0)
 						{
-							wxFFile metaFile(metaFileName.GetFullPath(), L"wb");
-							if (metaFile.IsOpened())
+							if (auto metaFile = FileSystem::OpenManagedCFile(metaFileName.c_str(), "wb"); metaFile)
 							{
-								metaFile.Write(entry->entry.raw, sizeof(entry->entry.raw));
+								std::fwrite(entry->entry.raw, sizeof(entry->entry.raw), 1, metaFile.get());
 							}
 						}
 						else
 						{
 							// if metadata is standard make sure to remove a possibly existing metadata file
-							if (metaFileName.FileExists())
+							if (FileSystem::FileExists(metaFileName.c_str()))
 							{
-								wxRemoveFile(metaFileName.GetFullPath());
+								FileSystem::DeleteFilePath(metaFileName.c_str());
 							}
 						}
 
 						// write the directory index
-						metaFileName.SetName(L"_pcsx2_index");
-						std::optional<ryml::Tree> yaml = loadYamlFile(metaFileName.GetFullPath());
+						metaFileName = Path::CombineStdString(fullSubDirPath, "_pcsx2_index");
+						std::optional<ryml::Tree> yaml = loadYamlFile(metaFileName.c_str());
 
 						// if _pcsx2_index hasn't been made yet, start a new file
 						if (!yaml.has_value())
@@ -1289,7 +1294,7 @@ void FolderMemoryCard::FlushFileEntries(const u32 dirCluster, const u32 remainin
 							ryml::NodeRef newNode = newYaml.rootref()["$ROOT"];
 							newNode["timeCreated"] << entry->entry.data.timeCreated.ToTime();
 							newNode["timeModified"] << entry->entry.data.timeModified.ToTime();
-							SaveYAMLToFile(metaFileName.GetFullPath(), newYaml);
+							SaveYAMLToFile(metaFileName.c_str(), newYaml);
 						}
 						else if (!yaml.value().empty())
 						{
@@ -1298,8 +1303,8 @@ void FolderMemoryCard::FlushFileEntries(const u32 dirCluster, const u32 remainin
 							// Detect broken index files, every index file should have atleast ONE child ('[$%]ROOT')
 							if (!index.has_children())
 							{
-								AttemptToRecreateIndexFile(Path::FromWxString(m_folderName.GetFullPath() + subDirPath));
-								yaml = loadYamlFile(metaFileName.GetFullPath());
+								AttemptToRecreateIndexFile(fullSubDirPath);
+								yaml = loadYamlFile(metaFileName.c_str());
 								index = yaml.value().rootref();
 							}
 
@@ -1320,7 +1325,7 @@ void FolderMemoryCard::FlushFileEntries(const u32 dirCluster, const u32 remainin
 								entryNode["timeModified"] << entry->entry.data.timeModified.ToTime();
 
 								// Write out the changes
-								SaveYAMLToFile(metaFileName.GetFullPath(), index);
+								SaveYAMLToFile(metaFileName.c_str(), index);
 							}
 						}
 					}
@@ -1342,24 +1347,25 @@ void FolderMemoryCard::FlushFileEntries(const u32 dirCluster, const u32 remainin
 						char cleanName[sizeof(entry->entry.data.name)];
 						memcpy(cleanName, (const char*)entry->entry.data.name, sizeof(cleanName));
 						FileAccessHelper::CleanMemcardFilename(cleanName);
-						const wxString filePath = dirPath + L"/" + wxString::FromAscii((const char*)cleanName);
-						wxFileName fn(m_folderName.GetFullPath() + filePath);
+						const std::string fullDirPath(Path::CombineStdString(m_folderName, dirPath));
+						const std::string fn(Path::CombineStdString(fullDirPath, cleanName));
 
-						if (!fn.FileExists())
+						if (!FileSystem::FileExists(fn.c_str()))
 						{
-							if (!fn.DirExists())
+							if (!FileSystem::DirectoryExists(fullDirPath.c_str()))
 							{
-								fn.Mkdir(0777, wxPATH_MKDIR_FULL);
+								FileSystem::CreateDirectoryPath(fullDirPath.c_str(), false);
 							}
-							wxFFile createEmptyFile(fn.GetFullPath(), L"wb");
-							createEmptyFile.Close();
+
+							auto createEmptyFile = FileSystem::OpenManagedCFile(fn.c_str(), "wb");
 						}
 					}
 				}
 
 				if (m_performFileWrites)
 				{
-					FileAccessHelper::WriteIndex(m_folderName.GetFullPath() + dirPath, entry, parent);
+					std::string fullDirPath(Path::CombineStdString(m_folderName, dirPath));
+					FileAccessHelper::WriteIndex(std::move(fullDirPath), entry, parent);
 				}
 			}
 		}
@@ -1380,7 +1386,7 @@ void FolderMemoryCard::FlushDeletedFilesAndRemoveUnchangedDataFromCache(const st
 	FlushDeletedFilesAndRemoveUnchangedDataFromCache(oldFileEntries, newRootDirCluster, newFileCount, "");
 }
 
-void FolderMemoryCard::FlushDeletedFilesAndRemoveUnchangedDataFromCache(const std::vector<MemoryCardFileEntryTreeNode>& oldFileEntries, const u32 newCluster, const u32 newFileCount, const wxString& dirPath)
+void FolderMemoryCard::FlushDeletedFilesAndRemoveUnchangedDataFromCache(const std::vector<MemoryCardFileEntryTreeNode>& oldFileEntries, const u32 newCluster, const u32 newFileCount, const std::string& dirPath)
 {
 	// go through all file entires of the current directory of the old data
 	for (auto it = oldFileEntries.cbegin(); it != oldFileEntries.cend(); ++it)
@@ -1396,17 +1402,17 @@ void FolderMemoryCard::FlushDeletedFilesAndRemoveUnchangedDataFromCache(const st
 				char cleanName[sizeof(entry->entry.data.name)];
 				memcpy(cleanName, (const char*)entry->entry.data.name, sizeof(cleanName));
 				FileAccessHelper::CleanMemcardFilename(cleanName);
-				const wxString fileName = wxString::FromAscii(cleanName);
-				const wxString filePath = m_folderName.GetFullPath() + dirPath + L"/" + fileName;
+				const std::string fullDirPath(Path::CombineStdString(m_folderName, dirPath));
+				const std::string filePath(Path::CombineStdString(fullDirPath, cleanName));
 				m_lastAccessedFile.CloseMatching(filePath);
-				const wxString newFilePath = m_folderName.GetFullPath() + dirPath + L"/_pcsx2_deleted_" + fileName;
-				if (wxFileName::DirExists(newFilePath))
+				const std::string newFilePath(Path::CombineStdString(Path::CombineStdString(m_folderName, dirPath), fmt::format("_pcsx2_deleted_{}", cleanName)));
+				if (FileSystem::DirectoryExists(newFilePath.c_str()))
 				{
 					// wxRenameFile doesn't overwrite directories, so we have to remove the old one first
-					RemoveDirectory(newFilePath);
+					FileSystem::RecursiveDeleteDirectory(newFilePath.c_str());
 				}
-				wxRenameFile(filePath, newFilePath);
-				DeleteFromIndex(m_folderName.GetFullPath() + dirPath, fileName);
+				FileSystem::RenamePath(filePath.c_str(), newFilePath.c_str());
+				DeleteFromIndex(fullDirPath, cleanName);
 			}
 			else if (entry->IsDir())
 			{
@@ -1414,8 +1420,7 @@ void FolderMemoryCard::FlushDeletedFilesAndRemoveUnchangedDataFromCache(const st
 				char cleanName[sizeof(entry->entry.data.name)];
 				memcpy(cleanName, (const char*)entry->entry.data.name, sizeof(cleanName));
 				FileAccessHelper::CleanMemcardFilename(cleanName);
-				const wxString subDirName = wxString::FromAscii(cleanName);
-				const wxString subDirPath = dirPath + L"/" + subDirName;
+				const std::string subDirPath(Path::CombineStdString(dirPath, cleanName));
 				FlushDeletedFilesAndRemoveUnchangedDataFromCache(it->subdir, newEntry->entry.data.cluster, newEntry->entry.data.length, subDirPath);
 			}
 			else if (entry->IsFile())
@@ -1532,8 +1537,8 @@ bool FolderMemoryCard::WriteToFile(const u8* src, u32 adr, u32 dataLength)
 
 		if (m_performFileWrites)
 		{
-			wxFFile* file = m_lastAccessedFile.ReOpen(m_folderName, &it->second, true);
-			if (file->IsOpened())
+			std::FILE* file = m_lastAccessedFile.ReOpen(m_folderName, &it->second, true);
+			if (file)
 			{
 				const u32 clusterOffset = (page % 2) * PageSize + offset;
 				const u32 fileSize = entry->entry.data.length;
@@ -1541,26 +1546,24 @@ bool FolderMemoryCard::WriteToFile(const u8* src, u32 adr, u32 dataLength)
 				const u32 fileOffsetEnd = std::min(fileOffsetStart + dataLength, fileSize);
 				const u32 bytesToWrite = fileOffsetEnd - fileOffsetStart;
 
-				wxFileOffset actualFileSize = file->Length();
+				u32 actualFileSize = static_cast<u32>(std::clamp<s64>(FileSystem::FSize64(file), 0, std::numeric_limits<u32>::max()));
 				if (actualFileSize < fileOffsetStart)
 				{
-					file->Seek(actualFileSize);
+					FileSystem::FSeek64(file, actualFileSize, SEEK_SET);
 					const u32 diff = fileOffsetStart - actualFileSize;
 					u8 temp = 0xFF;
 					for (u32 i = 0; i < diff; ++i)
 					{
-						file->Write(&temp, 1);
+						std::fwrite(&temp, 1, 1, file);
 					}
 				}
 
-				const wxFileOffset fileOffset = file->Tell();
-				if (fileOffset != fileOffsetStart)
+				if (FileSystem::FTell64(file) == fileOffsetStart || FileSystem::FSeek64(file, fileOffsetStart, SEEK_SET) == 0)
 				{
-					file->Seek(fileOffsetStart);
-				}
-				if (bytesToWrite > 0)
-				{
-					file->Write(src, bytesToWrite);
+					if (bytesToWrite > 0)
+					{
+						std::fwrite(src, bytesToWrite, 1, file);
+					}
 				}
 			}
 			else
@@ -1717,7 +1720,7 @@ void FolderMemoryCard::SetTimeLastWrittenToNow()
 	m_framesUntilFlush = FramesAfterWriteUntilFlush;
 }
 
-void FolderMemoryCard::AttemptToRecreateIndexFile(fs::path directory) const
+void FolderMemoryCard::AttemptToRecreateIndexFile(const std::string& directory) const
 {
 	// Attempt to fix broken index files (potentially broken in v1.7.2115, fixed in 1.7.2307
 	Console.Error(fmt::format("[Memcard] Folder memory card index file is malformed, backing up and attempting to re-create.  This may not work for all games (ie. GTA), so backing up the current index file!. '{}'",
@@ -1757,6 +1760,16 @@ void FolderMemoryCard::AttemptToRecreateIndexFile(fs::path directory) const
 	ryml::emit(tree, file);
 	std::fflush(file);
 	std::fclose(file);
+}
+
+std::string FolderMemoryCard::GetDisabledMessage(uint slot) const
+{
+	return fmt::format("The PS2-slot {} has been automatically disabled.  You can correct the problem\nand re-enable it at any time using Config:Memory cards from the main menu.", slot); //TODO: translate internal slot index to human-readable slot description
+}
+
+std::string FolderMemoryCard::GetCardFullMessage(const std::string& filePath) const
+{
+	return fmt::format("(FolderMcd) Memory Card is full, could not add: {}", filePath);
 }
 
 std::vector<FolderMemoryCard::EnumeratedFileEntry> FolderMemoryCard::GetOrderedFiles(const wxString& dirPath) const
@@ -1900,19 +1913,18 @@ std::vector<FolderMemoryCard::EnumeratedFileEntry> FolderMemoryCard::GetOrderedF
 	return result;
 }
 
-void FolderMemoryCard::DeleteFromIndex(const wxString& filePath, const wxString& entry) const
+void FolderMemoryCard::DeleteFromIndex(const std::string& filePath, const std::string_view& entry) const
 {
-	const wxString indexName = wxFileName(filePath, "_pcsx2_index").GetFullPath();
+	const std::string indexName(Path::CombineStdString(filePath, "_pcsx2_index"));
 
-	std::optional<ryml::Tree> yaml = loadYamlFile(indexName);
+	std::optional<ryml::Tree> yaml = loadYamlFile(indexName.c_str());
 	if (yaml.has_value() && !yaml.value().empty())
 	{
 		ryml::NodeRef index = yaml.value().rootref();
-		const wxCharTypeBuffer key(entry.ToUTF8());
-		index.remove_child(c4::to_csubstr(key));
+		index.remove_child(c4::csubstr(entry.data(), entry.length()));
 
 		// Write out the changes
-		SaveYAMLToFile(indexName, index);
+		SaveYAMLToFile(indexName.c_str(), index);
 	}
 }
 
@@ -1964,16 +1976,21 @@ void FolderMemoryCard::CalculateECC(u8* ecc, const u8* data)
 	return;
 }
 
-void FolderMemoryCard::WriteToFile(const wxString& filename)
+void FolderMemoryCard::WriteToFile(const std::string& filename)
 {
-	wxFFile targetFile(filename, L"wb");
+	auto targetFile = FileSystem::OpenManagedCFile(filename.c_str(), "wb");
+	if (!targetFile)
+	{
+		Console.Error("(FolderMemoryCard::WriteToFile) Failed to open '%s'.", filename.c_str());
+		return;
+	}
 
 	u8 buffer[FolderMemoryCard::PageSizeRaw];
 	u32 adr = 0;
 	while (adr < GetSizeInClusters() * FolderMemoryCard::ClusterSizeRaw)
 	{
 		Read(buffer, adr, FolderMemoryCard::PageSizeRaw);
-		targetFile.Write(buffer, FolderMemoryCard::PageSizeRaw);
+		std::fwrite(buffer, FolderMemoryCard::PageSizeRaw, 1, targetFile.get());
 		adr += FolderMemoryCard::PageSizeRaw;
 	}
 }
@@ -1988,7 +2005,7 @@ FileAccessHelper::~FileAccessHelper()
 	this->CloseAll();
 }
 
-wxFFile* FileAccessHelper::Open(const wxFileName& folderName, MemoryCardFileMetadataReference* fileRef, bool writeMetadata)
+wxFFile* FileAccessHelper::Open(const std::string_view& folderName, MemoryCardFileMetadataReference* fileRef, bool writeMetadata /* = false */)
 {
 	wxFileName fn(folderName);
 	fileRef->GetPath(&fn);
@@ -2059,14 +2076,15 @@ void FileAccessHelper::WriteMetadata(wxFileName folderName, const MemoryCardFile
 	}
 }
 
-void FileAccessHelper::WriteIndex(wxFileName folderName, MemoryCardFileEntry* const entry, MemoryCardFileMetadataReference* const parent)
+void FileAccessHelper::WriteIndex(std::string folderName, MemoryCardFileEntry* const entry, MemoryCardFileMetadataReference* const parent)
 {
 	parent->GetPath(&folderName);
 	char cleanName[sizeof(entry->entry.data.name)];
 	memcpy(cleanName, (const char*)entry->entry.data.name, sizeof(cleanName));
 	FileAccessHelper::CleanMemcardFilename(cleanName);
 
-	if (entry->IsDir())
+	if (entry->IsDir() || entry->IsFile())
+
 	{
 		folderName.AppendDir(wxString::FromAscii(cleanName));
 	}
@@ -2191,7 +2209,7 @@ void FileAccessHelper::FlushAll()
 {
 	for (auto it = m_files.begin(); it != m_files.end(); ++it)
 	{
-		it->second.fileHandle->Flush();
+		std::fflush(it->second.fileHandle);
 	}
 }
 
@@ -2247,7 +2265,7 @@ bool FileAccessHelper::CleanMemcardFilenameEndDotOrSpace(char* name, size_t leng
 	return cleaned;
 }
 
-bool MemoryCardFileMetadataReference::GetPath(wxFileName* fileName) const
+bool MemoryCardFileMetadataReference::GetPath(std::string* fileName) const
 {
 	bool parentCleaned = false;
 	if (parent)
@@ -2259,13 +2277,9 @@ bool MemoryCardFileMetadataReference::GetPath(wxFileName* fileName) const
 	memcpy(cleanName, (const char*)entry->entry.data.name, sizeof(cleanName));
 	bool localCleaned = FileAccessHelper::CleanMemcardFilename(cleanName);
 
-	if (entry->IsDir())
+	if (entry->IsDir() || entry->IsFile())
 	{
-		fileName->AppendDir(wxString::FromAscii(cleanName));
-	}
-	else if (entry->IsFile())
-	{
-		fileName->SetName(wxString::FromAscii(cleanName));
+		*fileName = Path::CombineStdString(*fileName, cleanName);
 	}
 
 	return parentCleaned || localCleaned;
@@ -2355,7 +2369,7 @@ void FolderMemoryCardAggregator::NextFrame(uint slot)
 	m_cards[slot].NextFrame();
 }
 
-bool FolderMemoryCardAggregator::ReIndex(uint slot, const bool enableFiltering, const wxString& filter)
+bool FolderMemoryCardAggregator::ReIndex(uint slot, const bool enableFiltering, const std::string& filter)
 {
 	if (m_cards[slot].ReIndex(enableFiltering, filter))
 	{

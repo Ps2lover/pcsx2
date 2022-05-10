@@ -44,8 +44,6 @@ extern uint FileMcd_GetMtapSlot(uint slot);
 extern bool FileMcd_IsMultitapSlot(uint slot);
 //extern wxFileName FileMcd_GetSimpleName(uint slot);
 extern std::string FileMcd_GetDefaultName(uint slot);
-extern bool isValidNewFilename(wxString filenameStringToTest, wxDirName atBasePath, wxString& out_errorMessage, uint minNumCharacters = 5);
-
 
 uint FileMcd_ConvertToSlot(uint port, uint slot);
 void FileMcd_EmuOpen();

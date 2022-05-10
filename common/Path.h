@@ -231,6 +231,7 @@ namespace Path
 	extern wxString Combine(const wxString& srcPath, const wxDirName& srcFile);
 	extern std::string CombineStdString(const wxDirName& srcPath, const std::string_view& srcFile);
 	extern std::string CombineStdString(const std::string_view& srcPath, const std::string_view& srcFile);
+	extern std::string NormalizeStdString(const std::string_view& srcPath);
 	extern wxString ReplaceExtension(const wxString& src, const wxString& ext);
 	extern wxString ReplaceFilename(const wxString& src, const wxString& newfilename);
 	extern wxString GetFilename(const wxString& src);

@@ -765,6 +765,7 @@ extern void UI_EnableSysActions();
 
 extern void UI_DisableSysShutdown();
 
+extern bool isValidNewFilename(wxString filenameStringToTest, wxDirName atBasePath, wxString& out_errorMessage, uint minNumCharacters = 5);
 
 #define AffinityAssert_AllowFrom_SysExecutor() \
 	pxAssertMsg(wxGetApp().SysExecutorThread.IsSelf(), "Thread affinity violation: Call allowed from SysExecutor thread only.")

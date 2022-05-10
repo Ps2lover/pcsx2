@@ -1161,9 +1161,9 @@ std::string Pcsx2Config::FullpathToBios() const
 	return ret;
 }
 
-wxString Pcsx2Config::FullpathToMcd(uint slot) const
+std::string Pcsx2Config::FullpathToMcd(uint slot) const
 {
-	return Path::Combine(EmuFolders::MemoryCards, StringUtil::UTF8StringToWxString(Mcd[slot].Filename));
+	return Path::CombineStdString(EmuFolders::MemoryCards, Mcd[slot].Filename);
 }
 
 bool Pcsx2Config::operator==(const Pcsx2Config& right) const
