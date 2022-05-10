@@ -778,6 +778,11 @@ namespace Vulkan
 		}
 
 		ActivateCommandBuffer(0);
+
+		// reset time quey pool, we'll do this before we write to it anyway, but the first frame does a get, when it's not reset yet.
+		if (m_gpu_timing_supported)
+			vkCmdResetQueryPool(GetCurrentInitCommandBuffer(), m_timestamp_query_pool, 0, NUM_COMMAND_BUFFERS * 2);
+
 		return true;
 	}
 
