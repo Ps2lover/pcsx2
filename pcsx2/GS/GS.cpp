@@ -161,7 +161,7 @@ void GSclose()
 	Host::ReleaseHostDisplay();
 }
 
-static HostDisplay::RenderAPI GetAPIForRenderer(GSRendererType renderer)
+HostDisplay::RenderAPI GSGetAPIForRenderer(GSRendererType renderer)
 {
 #if defined(_WIN32)
 	// On Windows, we use DX11 for software, since it's always available.
@@ -325,7 +325,7 @@ bool GSreopen(bool recreate_display)
 	if (recreate_display)
 	{
 		Host::ReleaseHostDisplay();
-		if (!Host::AcquireHostDisplay(GetAPIForRenderer(GSConfig.Renderer)))
+		if (!Host::AcquireHostDisplay(GSGetAPIForRenderer(GSConfig.Renderer)))
 		{
 			pxFailRel("(GSreopen) Failed to reacquire host display");
 			return false;
@@ -356,7 +356,7 @@ bool GSopen(const Pcsx2Config::GSOptions& config, GSRendererType renderer, u8* b
 	GSConfig = config;
 	GSConfig.Renderer = renderer;
 
-	if (!Host::AcquireHostDisplay(GetAPIForRenderer(renderer)))
+	if (!Host::AcquireHostDisplay(GSGetAPIForRenderer(renderer)))
 	{
 		Console.Error("Failed to acquire host display");
 		return false;
@@ -753,7 +753,7 @@ void GSUpdateConfig(const Pcsx2Config::GSOptions& new_config)
 			existing_api = HostDisplay::RenderAPI::OpenGL;
 
 		const bool do_full_restart = (
-			existing_api != GetAPIForRenderer(GSConfig.Renderer) ||
+			existing_api != GSGetAPIForRenderer(GSConfig.Renderer) ||
 			GSConfig.Adapter != old_config.Adapter ||
 			GSConfig.UseDebugDevice != old_config.UseDebugDevice ||
 			GSConfig.UseBlitSwapChain != old_config.UseBlitSwapChain ||
@@ -854,7 +854,7 @@ void GSSwitchRenderer(GSRendererType new_renderer)
 
 	const bool is_software_switch = (new_renderer == GSRendererType::SW || GSConfig.Renderer == GSRendererType::SW);
 	GSConfig.Renderer = new_renderer;
-	GSreopen(!is_software_switch && existing_api != GetAPIForRenderer(new_renderer));
+	GSreopen(!is_software_switch && existing_api != GSGetAPIForRenderer(new_renderer));
 }
 
 void GSResetAPIState()

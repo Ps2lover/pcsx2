@@ -19,6 +19,7 @@
 #include "Window/GSSetting.h"
 #include "SaveState.h"
 #include "pcsx2/Config.h"
+#include "pcsx2/HostDisplay.h"
 
 #include <map>
 
@@ -49,7 +50,8 @@ enum class GSVideoMode : u8
 extern Pcsx2Config::GSOptions GSConfig;
 
 struct HostKeyEvent;
-class HostDisplay;
+
+HostDisplay::RenderAPI GSGetAPIForRenderer(GSRendererType renderer);
 
 int GSinit();
 void GSinitConfig();
