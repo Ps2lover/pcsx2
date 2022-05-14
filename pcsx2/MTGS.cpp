@@ -29,6 +29,7 @@
 
 #include "Host.h"
 #include "HostDisplay.h"
+#include "VMManager.h"
 
 #ifndef PCSX2_CORE
 #include "gui/Dialogs/ModalPopups.h"
@@ -286,6 +287,11 @@ void SysMtgsThread::MainLoop()
 		// to avoid it.
 
 		mtvu_lock.unlock();
+#ifdef PCSX2_CORE
+		if (m_run_idle_flag.load(std::memory_order_acquire) && VMManager::GetState() != VMState::Running)
+			GSRunIdle();
+		else
+#endif
 		m_sem_event.WaitForWork();
 		mtvu_lock.lock();
 
@@ -980,4 +986,12 @@ bool SysMtgsThread::SaveMemorySnapshot(u32 width, u32 height, std::vector<u32>* 
 	});
 	WaitGS(false, false, false);
 	return result;
+}
+
+void SysMtgsThread::SetRunIdle(bool enabled)
+{
+	std::unique_lock lock(m_mtx_RingBufferBusy2);
+	m_run_idle_flag.store(enabled, std::memory_order_relaxed);
+	if (enabled)
+		m_sem_event.NotifyOfWork();
 }

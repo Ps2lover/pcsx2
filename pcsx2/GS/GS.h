@@ -68,6 +68,7 @@ void GSgifTransfer1(u8* mem, u32 addr);
 void GSgifTransfer2(u8* mem, u32 size);
 void GSgifTransfer3(u8* mem, u32 size);
 void GSvsync(u32 field, bool registers_written);
+void GSRunIdle();
 u32 GSmakeSnapshot(char* path);
 int GSfreeze(FreezeAction mode, freezeData* data);
 #ifndef PCSX2_CORE

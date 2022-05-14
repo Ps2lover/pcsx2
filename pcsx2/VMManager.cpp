@@ -67,7 +67,6 @@
 
 namespace VMManager
 {
-	static void LoadSettings();
 	static void ApplyGameFixes();
 	static bool UpdateGameSettingsLayer();
 	static void CheckForConfigChanges(const Pcsx2Config& old_config);

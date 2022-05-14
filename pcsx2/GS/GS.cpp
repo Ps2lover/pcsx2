@@ -480,6 +480,11 @@ void GSvsync(u32 field, bool registers_written)
 	}
 }
 
+void GSRunIdle()
+{
+	g_gs_renderer->RunIdle();
+}
+
 u32 GSmakeSnapshot(char* path)
 {
 	try

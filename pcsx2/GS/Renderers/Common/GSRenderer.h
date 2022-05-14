@@ -60,6 +60,7 @@ public:
 	virtual void PurgeTextureCache();
 
 	bool SaveSnapshotToMemory(u32 width, u32 height, std::vector<u32>* pixels);
+	void RunIdle();
 };
 
 extern std::unique_ptr<GSRenderer> g_gs_renderer;

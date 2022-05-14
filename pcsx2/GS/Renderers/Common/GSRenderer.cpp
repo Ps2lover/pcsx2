@@ -719,6 +719,30 @@ void GSRenderer::VSync(u32 field, bool registers_written)
 	}
 }
 
+void GSRenderer::RunIdle()
+{
+	g_gs_device->ResetAPIState();
+	if (Host::BeginPresentFrame(false))
+	{
+		GSTexture* current = g_gs_device->GetCurrent();
+		if (current)
+		{
+			HostDisplay* const display = g_gs_device->GetDisplay();
+			const GSVector4 draw_rect(CalculateDrawRect(display->GetWindowWidth(), display->GetWindowHeight(),
+				current->GetWidth(), current->GetHeight(), display->GetDisplayAlignment(), display->UsesLowerLeftOrigin(), GetVideoMode() == GSVideoMode::SDTV_480P));
+
+			static constexpr ShaderConvert s_shader[5] = { ShaderConvert::COPY, ShaderConvert::SCANLINE,
+				ShaderConvert::DIAGONAL_FILTER, ShaderConvert::TRIANGULAR_FILTER,
+				ShaderConvert::COMPLEX_FILTER }; // FIXME
+
+			g_gs_device->StretchRect(current, nullptr, draw_rect, s_shader[GSConfig.TVShader], GSConfig.LinearPresent);
+		}
+
+		Host::EndPresentFrame();
+	}
+	g_gs_device->RestoreAPIState();
+}
+
 bool GSRenderer::MakeSnapshot(const std::string& path)
 {
 	if (m_snapshot.empty())
