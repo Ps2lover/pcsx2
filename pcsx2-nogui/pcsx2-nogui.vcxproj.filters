@@ -11,4 +11,7 @@
     <ClInclude Include="NoGUIHost.h" />
     <ClInclude Include="NoGUIPlatform.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="pcsx2-nogui.manifest" />
+  </ItemGroup>
 </Project>

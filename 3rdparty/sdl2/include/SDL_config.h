@@ -251,7 +251,7 @@ typedef unsigned int uintptr_t;
 #define SDL_SENSOR_DISABLED 1
 #define SDL_RENDER_DISABLED 1
 #define SDL_POWER_DISABLED 1
-#define SDL_VIDEO_DISABLED 1
+//#define SDL_VIDEO_DISABLED 1
 #define SDL_LOCALE_DISABLED 1
 #define SDL_MISC_DISABLED 1
 

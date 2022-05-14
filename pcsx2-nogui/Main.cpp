@@ -200,7 +200,11 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	// TODO: Autoboot
+	// TODO: Start GS/fullscreen UI
+
+	if (autoboot)
+		NoGUIHost::StartVM(std::move(autoboot));
+
 	g_nogui_window->RunMessageLoop();
 
 	NoGUIHost::Shutdown();

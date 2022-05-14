@@ -72,6 +72,8 @@ static bool SetCriticalFolders();
 static void SetDefaultConfig();
 static void ProcessCPUThreadEvents(bool block);
 static void CPUThreadEntryPoint();
+static bool InitializeGSForInterface();
+static void ShutdownGSForInterface();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -104,12 +106,16 @@ bool NoGUIHost::Initialize()
 		return false;
 	}
 
-	if (!VMManager::Internal::InitializeGlobals())
+	if (!VMManager::Internal::InitializeGlobals() || !VMManager::Internal::InitializeMemory())
 		return false;
 
 	HookSignals();
 
+	// we want settings loaded so we choose the correct renderer
+	VMManager::LoadSettings();
+
 	// start the cpu thread up
+	s_running.store(true, std::memory_order_release);
 	s_cpu_thread.Start(CPUThreadEntryPoint);
 	return true;
 }
@@ -386,6 +392,16 @@ void NoGUIHost::SetBatchMode(bool enabled)
 	s_batch_mode = enabled;
 }
 
+void NoGUIHost::StartVM(std::shared_ptr<VMBootParameters> params)
+{
+	Host::RunOnCPUThread([params = std::move(params)]() {
+		if (!VMManager::Initialize(*params))
+			return;
+
+		VMManager::SetState(VMState::Running);
+	});
+}
+
 std::string NoGUIHost::GetAppNameAndVersion()
 {
 	std::string ret;
@@ -429,11 +445,14 @@ void NoGUIHost::ProcessCPUThreadEvents(bool block)
 	{
 		if (s_cpu_thread_events.empty())
 		{
-			if (!block || !s_running.load())
+			if (!block || !s_running.load(std::memory_order_acquire))
 				return;
 
 			s_cpu_thread_event_posted.wait(lock, []() { return !s_cpu_thread_events.empty(); });
 		}
+
+		// return after processing all events if we had one
+		block = false;
 
 		auto event = std::move(s_cpu_thread_events.front());
 		s_cpu_thread_events.pop_front();
@@ -451,7 +470,16 @@ void NoGUIHost::ProcessCPUThreadEvents(bool block)
 
 void NoGUIHost::CPUThreadEntryPoint()
 {
-	while (s_running.load())
+	PerformanceMetrics::SetCPUThread(Threading::ThreadHandle::GetForCallingThread());
+
+	// start the GS thread up and get it going
+	if (!InitializeGSForInterface())
+	{
+		Shutdown();
+		return;
+	}
+
+	while (s_running.load(std::memory_order_acquire))
 	{
 		switch (VMManager::GetState())
 		{
@@ -475,6 +503,8 @@ void NoGUIHost::CPUThreadEntryPoint()
 				break;
 		}
 	}
+
+	PerformanceMetrics::SetCPUThread(Threading::ThreadHandle());
 }
 
 std::optional<std::vector<u8>> Host::ReadResourceFile(const char* filename)
@@ -552,14 +582,17 @@ HostDisplay* Host::AcquireHostDisplay(HostDisplay::RenderAPI api)
 
 	s_host_display_created.Wait();
 
-	// TODO: This needs to happen on the GS thread.
 	if (!s_host_display->MakeRenderContextCurrent() ||
-		!s_host_display->InitializeRenderDevice(StringUtil::wxStringToUTF8String(EmuFolders::Cache.ToString()), false))
+		!s_host_display->InitializeRenderDevice(StringUtil::wxStringToUTF8String(EmuFolders::Cache.ToString()), false) ||
+		!ImGuiManager::Initialize())
 	{
 		Console.Error("Failed to initialize render device.");
 		ReleaseHostDisplay();
 		return nullptr;
 	}
+
+	Console.WriteLn(Color_StrongGreen, "%s Graphics Driver Info:", HostDisplay::RenderAPIToString(s_host_display->GetRenderAPI()));
+	Console.Indent().WriteLn(s_host_display->GetDriverInfo());
 
 	return s_host_display.get();
 }
@@ -568,6 +601,8 @@ void Host::ReleaseHostDisplay()
 {
 	if (!s_host_display)
 		return;
+
+	ImGuiManager::Shutdown();
 
 	s_host_display->DestroyRenderSurface();
 	s_host_display->DestroyRenderDevice();
@@ -612,6 +647,23 @@ void Host::UpdateHostDisplay()
 	g_emu_thread->updateDisplay();
 	ImGuiManager::WindowResized();
 #endif
+}
+
+bool NoGUIHost::InitializeGSForInterface()
+{
+	if (!GetMTGS().WaitForOpen())
+	{
+		g_nogui_window->ReportError("Error", "MTGS open failed.");
+		return false;
+	}
+
+	GetMTGS().SetRunIdle(true);
+	return true;
+}
+
+void NoGUIHost::ShutdownGSForInterface()
+{
+	GetMTGS().WaitForClose();
 }
 
 void Host::OnVMStarting()

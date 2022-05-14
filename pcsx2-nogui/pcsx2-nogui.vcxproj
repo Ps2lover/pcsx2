@@ -144,6 +144,9 @@
     <ClInclude Include="NoGUIPlatform.h" />
     <ClInclude Include="PrecompiledHeader.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="pcsx2-nogui.manifest" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

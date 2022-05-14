@@ -39,11 +39,10 @@ namespace NoGUIHost
 	void SetBatchMode(bool enabled);
 
 	/// Executes a function on the UI thread.
-	void RunOnUIThread(const std::function<void()>& func, bool block = false);
+	void RunOnUIThread(const std::function<void()>& func);
 
-	/// Internal display creation. Called back from the platform.
-	void PlatformWindowCreated(std::optional<WindowInfo> wi);
-	void PlatformWindowDestroyed();
+	/// Starts the virtual machine.
+	void StartVM(std::shared_ptr<VMBootParameters> params);
 
 	/// Returns the application name and version, optionally including debug/devel config indicator.
 	std::string GetAppNameAndVersion();

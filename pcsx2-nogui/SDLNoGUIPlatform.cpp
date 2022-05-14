@@ -211,8 +211,8 @@ void SDLNoGUIPlatform::RunMessageLoop()
 	for (;;)
 	{
 		SDL_Event ev;
-		if (!SDL_PollEvent(&ev))
-			break;
+		if (!SDL_WaitEvent(&ev))
+			continue;
 
 #if 0
 		if (is_sdl_controller_interface &&
