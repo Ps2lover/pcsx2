@@ -286,14 +286,23 @@ void SysMtgsThread::MainLoop()
 		// is very optimized (only 1 instruction test in most cases), so no point in trying
 		// to avoid it.
 
-		mtvu_lock.unlock();
 #ifdef PCSX2_CORE
 		if (m_run_idle_flag.load(std::memory_order_acquire) && VMManager::GetState() != VMState::Running)
-			GSRunIdle();
+		{
+			if (!m_sem_event.CheckForWork())
+				GSRunIdle();
+		}
 		else
-#endif
+		{
+			mtvu_lock.unlock();
+			m_sem_event.WaitForWork();
+			mtvu_lock.lock();
+		}
+#else
+		mtvu_lock.unlock();
 		m_sem_event.WaitForWork();
 		mtvu_lock.lock();
+#endif
 
 		if (!m_open_flag.load(std::memory_order_acquire))
 			break;
@@ -905,6 +914,7 @@ void SysMtgsThread::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 void SysMtgsThread::RunOnGSThread(AsyncCallType func)
 {
 	SendPointerPacket(GS_RINGTYPE_ASYNC_CALL, 0, new AsyncCallType(std::move(func)));
+	SetEvent();
 }
 
 void SysMtgsThread::ApplySettings()
@@ -990,8 +1000,6 @@ bool SysMtgsThread::SaveMemorySnapshot(u32 width, u32 height, std::vector<u32>* 
 
 void SysMtgsThread::SetRunIdle(bool enabled)
 {
-	std::unique_lock lock(m_mtx_RingBufferBusy2);
+	// NOTE: Should only be called on the GS thread.
 	m_run_idle_flag.store(enabled, std::memory_order_relaxed);
-	if (enabled)
-		m_sem_event.NotifyOfWork();
 }

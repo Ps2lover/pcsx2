@@ -26,6 +26,23 @@
 //  Semaphore Implementations
 // --------------------------------------------------------------------------------------
 
+bool Threading::WorkSema::CheckForWork()
+{
+	s32 value = m_state.load(std::memory_order_relaxed);
+	pxAssert(!IsDead(value));
+	if (IsReadyForSleep(value))
+		return false;
+
+	while (!m_state.compare_exchange_weak(value, NextStateWaitForWork(value), std::memory_order_acq_rel, std::memory_order_relaxed))
+		;
+
+	if (value & STATE_FLAG_WAITING_EMPTY)
+		m_empty_sema.Post();
+
+	// Acknowledge any additional work added between wake up request and getting here
+	m_state.fetch_and(STATE_FLAG_WAITING_EMPTY, std::memory_order_acquire);
+	return true;
+}
 
 void Threading::WorkSema::WaitForWork()
 {

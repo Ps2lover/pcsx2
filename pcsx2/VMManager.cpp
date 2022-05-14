@@ -56,6 +56,7 @@
 #include "DebugTools/MIPSAnalyst.h"
 #include "DebugTools/SymbolMap.h"
 
+#include "Frontend/FullscreenUI.h"
 #include "Frontend/INISettingsInterface.h"
 #include "Frontend/InputManager.h"
 #include "Frontend/GameList.h"
@@ -126,6 +127,7 @@ static u32 s_active_no_interlacing_patches = 0;
 static s32 s_current_save_slot = 1;
 static u32 s_frame_advance_count = 0;
 static u32 s_mxcsr_saved;
+static bool s_gs_open_on_initialize = false;
 
 VMState VMManager::GetState()
 {
@@ -200,6 +202,12 @@ bool VMManager::Internal::InitializeGlobals()
 	x86caps.SIMD_EstablishMXCSRmask();
 	x86caps.CalculateMHz();
 	SysLogMachineCaps();
+
+	if (GSinit() != 0)
+	{
+		Host::ReportErrorAsync("Error", "Failed to initialize GS (GSinit()).");
+		return false;
+	}
 
 	return true;
 }
@@ -554,6 +562,14 @@ void VMManager::UpdateRunningGame(bool force)
 		}
 
 		sioSetGameSerial(StringUtil::UTF8StringToWxString(memcardFilters.empty() ? s_game_serial : memcardFilters));
+
+		Host::OnGameChanged(s_disc_path, s_game_serial, s_game_name, s_game_crc);
+		if (FullscreenUI::IsInitialized())
+		{
+			GetMTGS().RunOnGSThread([disc_path = s_disc_path, game_serial = s_game_serial, game_name = s_game_name, game_crc = s_game_crc]() {
+				FullscreenUI::OnRunningGameChanged(std::move(disc_path), std::move(game_serial), std::move(game_name), game_crc);
+			});
+		}
 	}
 
 	UpdateGameSettingsLayer();
@@ -562,8 +578,6 @@ void VMManager::UpdateRunningGame(bool force)
 	ForgetLoadedPatches();
 	LoadPatches(StringUtil::StdStringFromFormat("%08X", new_crc), true, false);
 	GetMTGS().SendGameCRC(new_crc);
-
-	Host::OnGameChanged(s_disc_path, s_game_serial, s_game_name, s_game_crc);
 }
 
 void VMManager::ReloadPatches(bool verbose)
@@ -739,26 +753,18 @@ bool VMManager::Initialize(const VMBootParameters& boot_params)
 
 	Console.WriteLn("Opening GS...");
 
-	// TODO: Get rid of thread state nonsense and just make it a "normal" thread.
-	static bool gs_initialized = false;
-	if (!gs_initialized)
-	{
-		if (GSinit() != 0)
-		{
-			Console.WriteLn("Failed to initialize GS.");
-			return false;
-		}
-
-		gs_initialized = true;
-	}
-	if (!GetMTGS().WaitForOpen())
+	s_gs_open_on_initialize = GetMTGS().IsOpen();
+	if (!s_gs_open_on_initialize && !GetMTGS().WaitForOpen())
 	{
 		// we assume GS is going to report its own error
 		Console.WriteLn("Failed to open GS.");
 		return false;
 	}
 
-	ScopedGuard close_gs = []() { GetMTGS().WaitForClose(); };
+	ScopedGuard close_gs = []() {
+		if (!s_gs_open_on_initialize)
+			GetMTGS().WaitForClose();
+	};
 
 	Console.WriteLn("Opening SPU2...");
 	if (SPU2init() != 0 || SPU2open() != 0)
@@ -845,6 +851,8 @@ bool VMManager::Initialize(const VMBootParameters& boot_params)
 	Console.WriteLn("VM subsystems initialized in %.2f ms", init_timer.GetTimeMilliseconds());
 	s_state.store(VMState::Paused);
 	Host::OnVMStarted();
+	if (FullscreenUI::IsInitialized())
+		GetMTGS().RunOnGSThread([]() { FullscreenUI::OnVMStarted(); });
 
 	UpdateRunningGame(true);
 
@@ -867,6 +875,8 @@ bool VMManager::Initialize(const VMBootParameters& boot_params)
 
 void VMManager::Shutdown(bool save_resume_state)
 {
+	s_state.store(VMState::Stopping);
+
 	SetTimerResolutionIncreased(false);
 
 	// sync everything
@@ -914,7 +924,8 @@ void VMManager::Shutdown(bool save_resume_state)
 	DoCDVDclose();
 	FWclose();
 	FileMcd_EmuClose();
-	GetMTGS().WaitForClose();
+	if (!s_gs_open_on_initialize)
+		GetMTGS().WaitForClose();
 	USBshutdown();
 	SPU2shutdown();
 	PADshutdown();
@@ -925,6 +936,8 @@ void VMManager::Shutdown(bool save_resume_state)
 
 	s_state.store(VMState::Shutdown);
 	Host::OnVMDestroyed();
+	if (FullscreenUI::IsInitialized())
+		GetMTGS().RunOnGSThread([]() { FullscreenUI::OnVMDestroyed(); });
 }
 
 void VMManager::Reset()
@@ -1588,6 +1601,10 @@ DEFINE_HOTKEY("SaveStateToSlot", "Save States", "Save State To Selected Slot", [
 DEFINE_HOTKEY("LoadStateFromSlot", "Save States", "Load State From Selected Slot", [](bool pressed) {
 	if (!pressed)
 		VMManager::LoadStateFromSlot(s_current_save_slot);
+})
+DEFINE_HOTKEY("OpenPauseMenu", "General", "Open Pause Menu", [](bool pressed) {
+	if (!pressed && VMManager::HasValidVM())
+		GetMTGS().RunOnGSThread([]() { FullscreenUI::OpenPauseMenu(); });
 })
 END_HOTKEY_LIST()
 

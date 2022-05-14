@@ -1252,6 +1252,7 @@
       <Filter>Host</Filter>
     </ClCompile>
     <ClCompile Include="Frontend\ImGuiFullscreen.cpp" />
+    <ClCompile Include="Frontend\FullscreenUI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Patch.h">
@@ -2073,6 +2074,7 @@
       <Filter>Host</Filter>
     </ClInclude>
     <ClInclude Include="Frontend\ImGuiFullscreen.h" />
+    <ClInclude Include="Frontend\FullscreenUI.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="GS\GS.rc">

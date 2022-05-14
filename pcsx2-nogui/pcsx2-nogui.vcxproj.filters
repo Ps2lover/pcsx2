@@ -10,6 +10,7 @@
     <ClInclude Include="PrecompiledHeader.h" />
     <ClInclude Include="NoGUIHost.h" />
     <ClInclude Include="NoGUIPlatform.h" />
+    <ClInclude Include="SDLKeyNames.h" />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="pcsx2-nogui.manifest" />

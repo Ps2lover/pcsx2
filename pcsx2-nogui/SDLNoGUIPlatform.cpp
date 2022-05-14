@@ -1,5 +1,7 @@
 #include "PrecompiledHeader.h"
+#include "NoGUIHost.h"
 #include "NoGUIPlatform.h"
+#include "SDLKeyNames.h"
 
 #include "common/Threading.h"
 
@@ -7,6 +9,8 @@
 
 #include "SDL.h"
 #include "SDL_syswm.h"
+
+#include <array>
 
 static constexpr u32 DEFAULT_WINDOW_WIDTH = 1280;
 static constexpr u32 DEFAULT_WINDOW_HEIGHT = 720;
@@ -19,9 +23,13 @@ public:
 
 	void ReportError(const std::string_view& title, const std::string_view& message) override;
 
-	bool CreatePlatformWindow() override;
+	bool CreatePlatformWindow(std::string title) override;
 	void DestroyPlatformWindow() override;
 	std::optional<WindowInfo> GetPlatformWindowInfo() override;
+	void SetPlatformWindowTitle(std::string title) override;
+
+	std::optional<u32> ConvertHostKeyboardStringToCode(const std::string_view& str) override;
+	std::optional<std::string> ConvertHostKeyboardCodeToString(u32 code) override;
 
 	void RunMessageLoop() override;
 	void ExecuteInMessageLoop(std::function<void()> func) override;
@@ -39,10 +47,11 @@ private:
 	void SaveWindowGeometry();
 
 	SDL_Window* m_window = nullptr;
+	float m_window_scale = 1.0f;
 
 	int m_func_event_id = 0;
 	int m_quit_event_id = 0;
-	
+
 	bool m_fullscreen = false;
 	bool m_was_paused_by_focus_loss = false;
 };
@@ -105,14 +114,14 @@ void SDLNoGUIPlatform::ReportError(const std::string_view& title, const std::str
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title_copy.c_str(), message_copy.c_str(), m_window);
 }
 
-bool SDLNoGUIPlatform::CreatePlatformWindow()
+bool SDLNoGUIPlatform::CreatePlatformWindow(std::string title)
 {
 	// Create window.
 	const u32 window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 
 	int window_x, window_y, window_width, window_height;
 	GetSavedWindowGeometry(&window_x, &window_y, &window_width, &window_height);
-	m_window = SDL_CreateWindow("kek", window_x, window_y, window_width, window_height, window_flags);
+	m_window = SDL_CreateWindow(title.c_str(), window_x, window_y, window_width, window_height, window_flags);
 	if (!m_window)
 		return false;
 
@@ -154,11 +163,12 @@ std::optional<WindowInfo> SDLNoGUIPlatform::GetPlatformWindowInfo()
 
 	int window_width, window_height;
 	SDL_GetWindowSize(m_window, &window_width, &window_height);
+	m_window_scale = GetDPIScaleFactor(m_window);
 
 	WindowInfo wi;
 	wi.surface_width = static_cast<u32>(window_width);
 	wi.surface_height = static_cast<u32>(window_height);
-	wi.surface_scale = GetDPIScaleFactor(m_window);
+	wi.surface_scale = m_window_scale;
 
 	switch (syswm.subsystem)
 	{
@@ -200,6 +210,28 @@ std::optional<WindowInfo> SDLNoGUIPlatform::GetPlatformWindowInfo()
 	return wi;
 }
 
+void SDLNoGUIPlatform::SetPlatformWindowTitle(std::string title)
+{
+	ExecuteInMessageLoop([this, title = std::move(title)]() {
+		if (!m_window)
+			return;
+
+		SDL_SetWindowTitle(m_window, title.c_str());
+	});
+}
+
+std::optional<u32> SDLNoGUIPlatform::ConvertHostKeyboardStringToCode(const std::string_view& str)
+{
+	std::optional<SDL_Keycode> converted(SDLKeyNames::GetKeyCodeForName(str));
+	return converted.has_value() ? std::optional<u32>(static_cast<u32>(converted.value())) : std::nullopt;
+}
+
+std::optional<std::string> SDLNoGUIPlatform::ConvertHostKeyboardCodeToString(u32 code)
+{
+	const char* converted = SDLKeyNames::GetKeyName(code);
+	return converted ? std::optional<std::string>(converted) : std::nullopt;
+}
+
 void SDLNoGUIPlatform::RunMessageLoop()
 {
 #if 0
@@ -231,7 +263,7 @@ void SDLNoGUIPlatform::ExecuteInMessageLoop(std::function<void()> func)
 	SDL_Event my_ev = {};
 	my_ev.type = m_func_event_id;
 	my_ev.user.data1 = new std::function<void()>(std::move(func));
-	
+
 	// TODO: Probably should check errors here...
 	SDL_PushEvent(&my_ev);
 }
@@ -282,10 +314,7 @@ void SDLNoGUIPlatform::HandleSDLEvent(const SDL_Event* event)
 				{
 					s32 window_width, window_height;
 					SDL_GetWindowSize(m_window, &window_width, &window_height);
-#if 0
-					m_display->ResizeRenderWindow(window_width, window_height);
-					OnHostDisplayResized();
-#endif
+					NoGUIHost::ProcessPlatformWindowResize(window_width, window_height, m_window_scale);
 				}
 				break;
 
@@ -329,8 +358,10 @@ void SDLNoGUIPlatform::HandleSDLEvent(const SDL_Event* event)
 		case SDL_KEYDOWN:
 		case SDL_KEYUP:
 		{
-#if 0
 			const bool pressed = (event->type == SDL_KEYDOWN);
+			NoGUIHost::ProcessPlatformKeyEvent(static_cast<s32>(event->key.keysym.sym), pressed);
+
+#if 0
 
 			// Binding mode
 			if (m_fullscreen_ui_enabled && FullscreenUI::IsBindingInput())
@@ -357,18 +388,22 @@ void SDLNoGUIPlatform::HandleSDLEvent(const SDL_Event* event)
 
 		case SDL_MOUSEMOTION:
 		{
-#if 0
-			m_display->SetMousePosition(event->motion.x, event->motion.y);
-#endif
+			NoGUIHost::ProcessPlatformMouseMoveEvent(event->motion.x, event->motion.y);
 		}
 		break;
 
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
 		{
-#if 0
 			// map left -> 0, right -> 1, middle -> 2 to match with qt
 			static constexpr std::array<s32, 5> mouse_mapping = {{1, 3, 2, 4, 5}};
+			if (event->button.button <= mouse_mapping.size())
+			{
+				const s32 button = mouse_mapping[event->button.button - 1];
+				const bool pressed = (event->type == SDL_MOUSEBUTTONDOWN);
+				NoGUIHost::ProcessPlatformMouseButtonEvent(button, pressed);
+			}
+#if 0
 			if (!ImGui::GetIO().WantCaptureMouse && event->button.button > 0 && event->button.button <= mouse_mapping.size())
 			{
 				const s32 button = mouse_mapping[event->button.button - 1];

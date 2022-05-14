@@ -66,4 +66,10 @@ namespace NoGUIHost
 	bool RemoveBaseValueFromStringList(const char* section, const char* key, const char* value);
 	void RemoveBaseSettingValue(const char* section, const char* key);
 	void SaveSettings();
+
+	/// Called on the UI thread in response to mouse movement.
+	void ProcessPlatformWindowResize(s32 width, s32 height, float scale);
+	void ProcessPlatformMouseMoveEvent(s32 x, s32 y);
+	void ProcessPlatformMouseButtonEvent(s32 button, bool pressed);
+	void ProcessPlatformKeyEvent(s32 key, bool pressed);
 } // namespace QtHost

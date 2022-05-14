@@ -34,6 +34,7 @@
 #include "common/StringUtil.h"
 
 #include "pcsx2/CDVD/CDVD.h"
+#include "pcsx2/Frontend/FullscreenUI.h"
 #include "pcsx2/Frontend/GameList.h"
 #include "pcsx2/Frontend/InputManager.h"
 #include "pcsx2/Frontend/ImGuiManager.h"
@@ -61,20 +62,23 @@ std::unique_ptr<NoGUIPlatform> g_nogui_window;
 //////////////////////////////////////////////////////////////////////////
 // Local function declarations
 //////////////////////////////////////////////////////////////////////////
-namespace NoGUIHost {
-static void InitializeWxRubbish();
-static bool InitializeConfig();
-static bool ShouldUsePortableMode();
-static void SetResourcesDirectory();
-static void SetDataDirectory();
-static void HookSignals();
-static bool SetCriticalFolders();
-static void SetDefaultConfig();
-static void ProcessCPUThreadEvents(bool block);
-static void CPUThreadEntryPoint();
-static bool InitializeGSForInterface();
-static void ShutdownGSForInterface();
-}
+namespace NoGUIHost
+{
+	static void InitializeWxRubbish();
+	static bool InitializeConfig();
+	static bool ShouldUsePortableMode();
+	static void SetResourcesDirectory();
+	static void SetDataDirectory();
+	static void HookSignals();
+	static bool SetCriticalFolders();
+	static void SetDefaultConfig();
+	static void ProcessCPUThreadEvents(bool block);
+	static void CPUThreadEntryPoint();
+	static bool InitializeGSForInterface();
+	static void ShutdownGSForInterface();
+	static std::string GetWindowTitle(const std::string& game_title);
+	static void UpdateWindowTitle(const std::string& game_title);
+} // namespace NoGUIHost
 
 //////////////////////////////////////////////////////////////////////////
 // Local variable declarations
@@ -91,7 +95,7 @@ static std::mutex s_cpu_thread_events_mutex;
 static std::condition_variable s_cpu_thread_event_done;
 static std::condition_variable s_cpu_thread_event_posted;
 static std::deque<std::pair<std::function<void()>, bool>> s_cpu_thread_events;
-static u32 s_blocking_cpu_events_pending = 0;		// TODO: Token system would work better here.
+static u32 s_blocking_cpu_events_pending = 0; // TODO: Token system would work better here.
 
 //////////////////////////////////////////////////////////////////////////
 // Initialization/Shutdown
@@ -402,6 +406,44 @@ void NoGUIHost::StartVM(std::shared_ptr<VMBootParameters> params)
 	});
 }
 
+void NoGUIHost::ProcessPlatformWindowResize(s32 width, s32 height, float scale)
+{
+	Host::RunOnCPUThread([width, height, scale]() {
+		GetMTGS().ResizeDisplayWindow(width, height, scale);
+	});
+}
+
+void NoGUIHost::ProcessPlatformMouseMoveEvent(s32 x, s32 y)
+{
+	ImGuiManager::ProcessHostMouseMoveEvent(x, y);
+}
+
+void NoGUIHost::ProcessPlatformMouseButtonEvent(s32 button, bool pressed)
+{
+	Host::RunOnCPUThread([button, pressed]() {
+		const InputBindingKey bkey(InputManager::MakeHostMouseButtonKey(button));
+		const float value = pressed ? 1.0f : 0.0f;
+
+		if (ImGuiManager::ProcessHostMouseButtonEvent(bkey, value))
+			return;
+
+		InputManager::InvokeEvents(bkey, value);
+	});
+}
+
+void NoGUIHost::ProcessPlatformKeyEvent(s32 key, bool pressed)
+{
+	Host::RunOnCPUThread([key, pressed]() {
+		const InputBindingKey bkey(InputManager::MakeHostKeyboardKey(key));
+		const float value = pressed ? 1.0f : 0.0f;
+
+		if (ImGuiManager::ProcessHostKeyEvent(bkey, value))
+			return;
+
+		InputManager::InvokeEvents(bkey, value);
+	});
+}
+
 std::string NoGUIHost::GetAppNameAndVersion()
 {
 	std::string ret;
@@ -412,10 +454,7 @@ std::string NoGUIHost::GetAppNameAndVersion()
 	else if constexpr (PCSX2_isReleaseVersion)
 	{
 #define APPNAME_STRINGIZE(x) #x
-		ret = "PCSX2 "
-			APPNAME_STRINGIZE(PCSX2_VersionHi) "."
-			APPNAME_STRINGIZE(PCSX2_VersionMid) "."
-			APPNAME_STRINGIZE(PCSX2_VersionLo);
+		ret = "PCSX2 " APPNAME_STRINGIZE(PCSX2_VersionHi) "." APPNAME_STRINGIZE(PCSX2_VersionMid) "." APPNAME_STRINGIZE(PCSX2_VersionLo);
 #undef APPNAME_STRINGIZE
 	}
 	else
@@ -440,7 +479,7 @@ std::string NoGUIHost::GetAppConfigSuffix()
 void NoGUIHost::ProcessCPUThreadEvents(bool block)
 {
 	std::unique_lock lock(s_cpu_thread_events_mutex);
-	
+
 	for (;;)
 	{
 		if (s_cpu_thread_events.empty())
@@ -560,7 +599,7 @@ HostDisplay* Host::GetHostDisplay()
 HostDisplay* Host::AcquireHostDisplay(HostDisplay::RenderAPI api)
 {
 	g_nogui_window->ExecuteInMessageLoop([api]() {
-		if (g_nogui_window->CreatePlatformWindow())
+		if (g_nogui_window->CreatePlatformWindow(NoGUIHost::GetWindowTitle(VMManager::GetGameName())))
 		{
 			const std::optional<WindowInfo> wi(g_nogui_window->GetPlatformWindowInfo());
 			if (wi.has_value())
@@ -586,13 +625,20 @@ HostDisplay* Host::AcquireHostDisplay(HostDisplay::RenderAPI api)
 		!s_host_display->InitializeRenderDevice(StringUtil::wxStringToUTF8String(EmuFolders::Cache.ToString()), false) ||
 		!ImGuiManager::Initialize())
 	{
-		Console.Error("Failed to initialize render device.");
+		g_nogui_window->ReportError("Error", "Failed to initialize render device.");
 		ReleaseHostDisplay();
 		return nullptr;
 	}
 
 	Console.WriteLn(Color_StrongGreen, "%s Graphics Driver Info:", HostDisplay::RenderAPIToString(s_host_display->GetRenderAPI()));
 	Console.Indent().WriteLn(s_host_display->GetDriverInfo());
+
+	if (!FullscreenUI::Initialize())
+	{
+		g_nogui_window->ReportError("Error", "Failed to initialize fullscreen UI");
+		ReleaseHostDisplay();
+		return nullptr;
+	}
 
 	return s_host_display.get();
 }
@@ -607,7 +653,7 @@ void Host::ReleaseHostDisplay()
 	s_host_display->DestroyRenderSurface();
 	s_host_display->DestroyRenderDevice();
 	s_host_display.reset();
-	
+
 	g_nogui_window->ExecuteInMessageLoop([]() {
 		g_nogui_window->DestroyPlatformWindow();
 	});
@@ -615,7 +661,12 @@ void Host::ReleaseHostDisplay()
 
 bool Host::BeginPresentFrame(bool frame_skip)
 {
-	return s_host_display->BeginPresent(frame_skip);
+	if (s_host_display->BeginPresent(frame_skip))
+		return true;
+
+	// don't render imgui
+	ImGuiManager::NewFrame();
+	return false;
 }
 
 void Host::EndPresentFrame()
@@ -623,6 +674,7 @@ void Host::EndPresentFrame()
 	if (GSDumpReplayer::IsReplayingDump())
 		GSDumpReplayer::RenderUI();
 
+	FullscreenUI::Render();
 	ImGuiManager::RenderOSD();
 	s_host_display->EndPresent();
 	ImGuiManager::NewFrame();
@@ -657,13 +709,29 @@ bool NoGUIHost::InitializeGSForInterface()
 		return false;
 	}
 
-	GetMTGS().SetRunIdle(true);
 	return true;
 }
 
 void NoGUIHost::ShutdownGSForInterface()
 {
 	GetMTGS().WaitForClose();
+}
+
+std::string NoGUIHost::GetWindowTitle(const std::string& game_title)
+{
+	std::string suffix(GetAppConfigSuffix());
+	std::string window_title;
+	if (!VMManager::HasValidVM() || game_title.empty())
+		window_title = GetAppNameAndVersion() + suffix;
+	else
+		window_title = game_title;
+	
+	return window_title;
+}
+
+void NoGUIHost::UpdateWindowTitle(const std::string& game_title)
+{
+	g_nogui_window->SetPlatformWindowTitle(GetWindowTitle(game_title));
 }
 
 void Host::OnVMStarting()
@@ -694,8 +762,8 @@ void Host::OnVMResumed()
 void Host::OnGameChanged(const std::string& disc_path, const std::string& game_serial, const std::string& game_name,
 	u32 game_crc)
 {
-	// FIXME: Update window title
 	Console.WriteLn("Host::OnGameChanged(%s, %s, %s, %08X)", disc_path.c_str(), game_serial.c_str(), game_name.c_str(), game_crc);
+	NoGUIHost::UpdateWindowTitle(game_name);
 }
 
 void Host::OnPerformanceMetricsUpdated()
@@ -728,18 +796,19 @@ void Host::RunOnCPUThread(std::function<void()> function, bool block /* = false 
 {
 	std::unique_lock lock(s_cpu_thread_events_mutex);
 	s_cpu_thread_events.emplace_back(std::move(function), block);
+	s_cpu_thread_event_posted.notify_one();
 	if (block)
 		s_cpu_thread_event_done.wait(lock, []() { return s_blocking_cpu_events_pending == 0; });
 }
 
 std::optional<u32> InputManager::ConvertHostKeyboardStringToCode(const std::string_view& str)
 {
-	return std::nullopt;
+	return g_nogui_window->ConvertHostKeyboardStringToCode(str);
 }
 
 std::optional<std::string> InputManager::ConvertHostKeyboardCodeToString(u32 code)
 {
-	return std::nullopt;
+	return g_nogui_window->ConvertHostKeyboardCodeToString(code);
 }
 
 SysMtgsThread& GetMTGS()

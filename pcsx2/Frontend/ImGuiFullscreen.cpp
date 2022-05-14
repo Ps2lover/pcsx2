@@ -34,61 +34,11 @@ float g_layout_padding_left = 0.0f;
 float g_layout_padding_top = 0.0f;
 float g_menu_bar_size = 0.0f;
 
-static std::string s_font_filename;
-static std::string s_icon_font_filename;
-static std::vector<u8> s_text_font_data;
-static std::vector<u8> s_icon_font_data;
-static float s_font_size = 15.0f;
-static const ImWchar* s_font_glyph_range = nullptr;
 static LoadTextureFunction s_load_texture = nullptr;
 
 static u32 s_menu_button_index = 0;
 
-static LRUCache<std::string, std::unique_ptr<HostDisplayTexture>> s_texture_cache;
-
-void SetFontFilename(const char* filename)
-{
-  if (filename)
-    s_font_filename = filename;
-  else
-    std::string().swap(s_font_filename);
-}
-
-void SetFontFilename(std::string filename)
-{
-  if (!filename.empty())
-    s_font_filename = std::move(filename);
-  else
-    std::string().swap(s_font_filename);
-}
-
-void SetFontData(std::vector<u8> data)
-{
-  s_text_font_data = std::move(data);
-}
-
-void SetIconFontFilename(std::string icon_font_filename)
-{
-  if (!icon_font_filename.empty())
-    s_icon_font_filename = std::move(icon_font_filename);
-  else
-    std::string().swap(s_icon_font_filename);
-}
-
-void SetIconFontData(std::vector<u8> data)
-{
-  s_icon_font_data = std::move(data);
-}
-
-void SetFontSize(float size_pixels)
-{
-  s_font_size = size_pixels;
-}
-
-void SetFontGlyphRanges(const ImWchar* glyph_ranges)
-{
-  s_font_glyph_range = glyph_ranges;
-}
+static LRUCache<std::string, std::unique_ptr<HostDisplayTexture>> s_texture_cache(128);
 
 void SetMenuBarSize(float size)
 {
@@ -118,120 +68,6 @@ bool InvalidateCachedTexture(const std::string& path)
 void SetLoadTextureFunction(LoadTextureFunction callback)
 {
   s_load_texture = callback;
-}
-
-static ImFont* AddTextFont(float size /*= 15.0f*/)
-{
-  static const ImWchar default_ranges[] = {
-    // Basic Latin + Latin Supplement + Central European diacritics
-    0x0020,
-    0x017F,
-
-    // Cyrillic + Cyrillic Supplement
-    0x0400,
-    0x052F,
-
-    // Cyrillic Extended-A
-    0x2DE0,
-    0x2DFF,
-
-    // Cyrillic Extended-B
-    0xA640,
-    0xA69F,
-
-    0,
-  };
-
-  ImFontConfig cfg;
-
-  if (!s_font_filename.empty())
-  {
-    return ImGui::GetIO().Fonts->AddFontFromFileTTF(s_font_filename.c_str(), size, &cfg,
-                                                    s_font_glyph_range ? s_font_glyph_range : default_ranges);
-  }
-  else if (!s_text_font_data.empty())
-  {
-    cfg.FontDataOwnedByAtlas = false;
-    return ImGui::GetIO().Fonts->AddFontFromMemoryTTF(s_text_font_data.data(),
-                                                      static_cast<int>(s_text_font_data.size()), size, &cfg,
-                                                      s_font_glyph_range ? s_font_glyph_range : default_ranges);
-  }
-  else
-  {
-    pxFailRel("No text font provided");
-    return nullptr;
-  }
-}
-
-static void AddIconFonts(float size)
-{
-  static const ImWchar range_fa[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
-
-  ImFontConfig cfg;
-  cfg.MergeMode = true;
-  cfg.PixelSnapH = true;
-  cfg.GlyphMinAdvanceX = size * 0.75f;
-  cfg.GlyphMaxAdvanceX = size * 0.75f;
-
-  if (!s_icon_font_filename.empty())
-  {
-    ImGui::GetIO().Fonts->AddFontFromFileTTF(s_icon_font_filename.c_str(), size * 0.75f, &cfg, range_fa);
-  }
-  else if (!s_icon_font_data.empty())
-  {
-    cfg.FontDataOwnedByAtlas = false;
-    ImGui::GetIO().Fonts->AddFontFromMemoryTTF(s_icon_font_data.data(), static_cast<int>(s_icon_font_data.size()),
-                                               size * 0.75f, &cfg, range_fa);
-  }
-  else
-  {
-    pxFailRel("No icon font provided");
-  }
-}
-
-bool UpdateFonts()
-{
-  const float standard_font_size = std::ceil(DPIScale(s_font_size));
-  const float medium_font_size = std::ceil(LayoutScale(LAYOUT_MEDIUM_FONT_SIZE));
-  const float large_font_size = std::ceil(LayoutScale(LAYOUT_LARGE_FONT_SIZE));
-
-  if (g_standard_font && g_standard_font->FontSize == standard_font_size && g_medium_font &&
-      g_medium_font->FontSize == medium_font_size && g_large_font && g_large_font->FontSize == large_font_size)
-  {
-    return false;
-  }
-
-  ImGuiIO& io = ImGui::GetIO();
-  io.Fonts->Clear();
-
-  g_standard_font = AddTextFont(standard_font_size);
-  AddIconFonts(standard_font_size);
-  g_medium_font = AddTextFont(medium_font_size);
-  AddIconFonts(medium_font_size);
-  g_large_font = AddTextFont(large_font_size);
-  AddIconFonts(large_font_size);
-
-  if (!io.Fonts->Build())
-    pxFailRel("Failed to rebuild font atlas");
-
-  return true;
-}
-
-void ResetFonts()
-{
-  const float standard_font_size = std::ceil(DPIScale(s_font_size));
-
-  ImGuiIO& io = ImGui::GetIO();
-  io.Fonts->Clear();
-
-  g_standard_font = AddTextFont(standard_font_size);
-  AddIconFonts(standard_font_size);
-
-  g_medium_font = nullptr;
-  g_large_font = nullptr;
-
-  if (!io.Fonts->Build())
-    pxFailRel("Failed to rebuild font atlas");
 }
 
 bool UpdateLayoutScale()
@@ -1787,14 +1623,14 @@ void DrawNotifications(ImVec2& position, float spacing)
   }
 }
 
-bool Initialize()
+void SetFonts(ImFont* standard_font, ImFont* medium_font, ImFont* large_font)
 {
-  s_texture_cache.SetMaxCapacity(128);
-  g_initialized = true;
-  return true;
+  g_standard_font = standard_font;
+  g_medium_font = medium_font;
+  g_large_font = large_font;
 }
 
-void Shutdown()
+void ClearState()
 {
   g_standard_font = nullptr;
   g_medium_font = nullptr;
@@ -1819,8 +1655,6 @@ void Shutdown()
   s_file_selector_current_directory = {};
   s_file_selector_filters.clear();
   s_file_selector_items.clear();
-
-  g_initialized = false;
 }
 
 } // namespace ImGuiFullscreen

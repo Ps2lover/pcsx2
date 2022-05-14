@@ -25,7 +25,10 @@
 
 #include "Config.h"
 #include "Counters.h"
+#include "Frontend/FullscreenUI.h"
 #include "Frontend/ImGuiManager.h"
+#include "Frontend/ImGuiFullscreen.h"
+#include "Frontend/InputManager.h"
 #include "GS.h"
 #include "GS/GS.h"
 #include "Host.h"
@@ -40,16 +43,22 @@
 static void SetImGuiStyle();
 static bool LoadFontData();
 static void UnloadFontData();
-static bool AddImGuiFonts();
+static bool AddImGuiFonts(bool fullscreen_fonts);
 
 static float s_global_scale = 1.0f;
 
 static ImFont* s_standard_font;
 static ImFont* s_fixed_font;
+static ImFont* s_medium_font;
+static ImFont* s_large_font;
 
 static std::vector<u8> s_standard_font_data;
 static std::vector<u8> s_fixed_font_data;
 static std::vector<u8> s_icon_font_data;
+
+// cached copies of WantCaptureKeyboard/Mouse, used to know when to dispatch events
+static std::atomic_bool s_imgui_wants_keyboard{false};
+static std::atomic_bool s_imgui_wants_mouse{false};
 
 bool ImGuiManager::Initialize()
 {
@@ -74,6 +83,9 @@ bool ImGuiManager::Initialize()
 	SetImGuiStyle();
 	ImGui::GetStyle().ScaleAllSizes(s_global_scale);
 
+	if (FullscreenUI::IsInitialized())
+		ImGuiFullscreen::UpdateLayoutScale();
+
 	if (!display->CreateImGuiContext())
 	{
 		pxFailRel("Failed to create ImGui device context");
@@ -82,7 +94,7 @@ bool ImGuiManager::Initialize()
 		return false;
 	}
 
-	if (!AddImGuiFonts() || !display->UpdateImGuiFontTexture())
+	if (!AddImGuiFonts(FullscreenUI::IsInitialized()) || !display->UpdateImGuiFontTexture())
 	{
 		pxFailRel("Failed to create ImGui font text");
 		display->DestroyImGuiContext();
@@ -97,11 +109,20 @@ bool ImGuiManager::Initialize()
 
 void ImGuiManager::Shutdown()
 {
+	FullscreenUI::Shutdown();
+
 	HostDisplay* display = Host::GetHostDisplay();
 	if (display)
 		display->DestroyImGuiContext();
 	if (ImGui::GetCurrentContext())
 		ImGui::DestroyContext();
+
+	s_standard_font = nullptr;
+	s_fixed_font = nullptr;
+	s_medium_font = nullptr;
+	s_large_font = nullptr;
+	ImGuiFullscreen::SetFonts(nullptr, nullptr, nullptr);
+
 	UnloadFontData();
 }
 
@@ -123,7 +144,7 @@ void ImGuiManager::UpdateScale()
 	const float window_scale = display ? display->GetWindowScale() : 1.0f;
 	const float scale = std::max(window_scale * static_cast<float>(EmuConfig.GS.OsdScale / 100.0), 1.0f);
 
-	if (scale == s_global_scale)
+	if (scale == s_global_scale && (!HasFullscreenFonts() || !ImGuiFullscreen::UpdateLayoutScale()))
 		return;
 
 	// This is assumed to be called mid-frame.
@@ -136,7 +157,7 @@ void ImGuiManager::UpdateScale()
 	SetImGuiStyle();
 	ImGui::GetStyle().ScaleAllSizes(scale);
 
-	if (!AddImGuiFonts())
+	if (!AddImGuiFonts(HasFullscreenFonts()))
 		pxFailRel("Failed to create ImGui font text");
 
 	if (!display->UpdateImGuiFontTexture())
@@ -148,6 +169,10 @@ void ImGuiManager::UpdateScale()
 void ImGuiManager::NewFrame()
 {
 	ImGui::NewFrame();
+
+	const ImGuiIO& io = ImGui::GetIO();
+	s_imgui_wants_keyboard.store(io.WantCaptureKeyboard, std::memory_order_release);
+	s_imgui_wants_mouse.store(io.WantCaptureMouse, std::memory_order_release);
 }
 
 void SetImGuiStyle()
@@ -295,7 +320,7 @@ static bool AddIconFonts(float size)
 				size * 0.75f, &cfg, range_fa) != nullptr);
 }
 
-bool AddImGuiFonts()
+bool AddImGuiFonts(bool fullscreen_fonts)
 {
 	const float standard_font_size = std::ceil(15.0f * s_global_scale);
 
@@ -310,7 +335,52 @@ bool AddImGuiFonts()
 	if (!s_fixed_font)
 		return false;
 
+	if (fullscreen_fonts)
+	{
+		const float medium_font_size = std::ceil(ImGuiFullscreen::LayoutScale(ImGuiFullscreen::LAYOUT_MEDIUM_FONT_SIZE));
+		s_medium_font = AddTextFont(medium_font_size);
+		if (!s_medium_font || !AddIconFonts(medium_font_size))
+			return false;
+
+		const float large_font_size = std::ceil(ImGuiFullscreen::LayoutScale(ImGuiFullscreen::LAYOUT_LARGE_FONT_SIZE));
+		s_large_font = AddTextFont(large_font_size);
+		if (!s_large_font || !AddIconFonts(large_font_size))
+			return false;
+	}
+	else
+	{
+		s_medium_font = nullptr;
+		s_large_font = nullptr;
+	}
+
+	ImGuiFullscreen::SetFonts(s_standard_font, s_medium_font, s_large_font);
+
 	return io.Fonts->Build();
+}
+
+bool ImGuiManager::AddFullscreenFontsIfMissing()
+{
+	if (HasFullscreenFonts())
+		return true;
+
+	// can't do this in the middle of a frame
+	ImGui::EndFrame();
+
+	if (!AddImGuiFonts(true))
+	{
+		Console.Error("Failed to lazily allocate fullscreen fonts.");
+		AddImGuiFonts(false);
+	}
+
+	Host::GetHostDisplay()->UpdateImGuiFontTexture();
+	NewFrame();
+
+	return HasFullscreenFonts();
+}
+
+bool ImGuiManager::HasFullscreenFonts()
+{
+	return (s_medium_font && s_large_font);
 }
 
 struct OSDMessage
@@ -665,4 +735,51 @@ ImFont* ImGuiManager::GetStandardFont()
 ImFont* ImGuiManager::GetFixedFont()
 {
 	return s_fixed_font;
+}
+
+ImFont* ImGuiManager::GetMediumFont()
+{
+	AddFullscreenFontsIfMissing();
+	return s_medium_font;
+}
+
+ImFont* ImGuiManager::GetLargeFont()
+{
+	AddFullscreenFontsIfMissing();
+	return s_large_font;
+}
+
+void ImGuiManager::ProcessHostMouseMoveEvent(s32 x, s32 y)
+{
+	if (!ImGui::GetCurrentContext())
+		return;
+
+	// technically this is a bit racey.. but it's silly to push an event through at this frequency.
+	ImGui::GetIO().MousePos = ImVec2(static_cast<float>(x), static_cast<float>(y));
+}
+
+bool ImGuiManager::ProcessHostMouseButtonEvent(InputBindingKey key, float value)
+{
+	if (!ImGui::GetCurrentContext() || key.data == 0 || (key.data - 1) >= std::size(ImGui::GetIO().MouseDown))
+		return false;
+
+	// still update state anyway
+	GetMTGS().RunOnGSThread([key, value]() {
+		ImGui::GetIO().MouseDown[key.data - 1] = value != 0.0f;
+	});
+
+	return s_imgui_wants_mouse.load(std::memory_order_acquire);
+}
+
+bool ImGuiManager::ProcessHostKeyEvent(InputBindingKey key, float value)
+{
+	if (!ImGui::GetCurrentContext() || key.data >= std::size(ImGui::GetIO().KeysDown))
+		return false;
+
+	// still update state anyway
+	GetMTGS().RunOnGSThread([key, value]() {
+		ImGui::GetIO().KeysDown[key.data] = value != 0.0f;
+	});
+
+	return s_imgui_wants_keyboard.load(std::memory_order_acquire);
 }

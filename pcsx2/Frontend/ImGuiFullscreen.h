@@ -29,16 +29,10 @@ extern ImFont* g_standard_font;
 extern ImFont* g_medium_font;
 extern ImFont* g_large_font;
 
-extern bool g_initialized;
 extern float g_layout_scale;
 extern float g_layout_padding_left;
 extern float g_layout_padding_top;
 extern float g_menu_bar_size;
-
-static __fi bool IsInitialized()
-{
-  return g_initialized;
-}
 
 static __fi float DPIScale(float v)
 {
@@ -142,17 +136,12 @@ static __fi ImVec4 UISecondaryTextColor()
 }
 
 /// Initializes, setting up any state.
-bool Initialize();
+void SetFonts(ImFont* standard_font, ImFont* medium_font, ImFont* large_font);
+void SetLoadTextureFunction(LoadTextureFunction callback);
+bool UpdateLayoutScale();
 
 /// Shuts down, clearing all state.
-void Shutdown();
-
-void SetFontFilename(std::string filename);
-void SetFontData(std::vector<u8> data);
-void SetIconFontFilename(std::string icon_font_filename);
-void SetIconFontData(std::vector<u8> data);
-void SetFontSize(float size_pixels);
-void SetFontGlyphRanges(const ImWchar* glyph_ranges);
+void ClearState();
 
 /// Changes the menu bar size. Don't forget to call UpdateLayoutScale() and UpdateFonts().
 void SetMenuBarSize(float size);
@@ -160,15 +149,6 @@ void SetMenuBarSize(float size);
 /// Texture cache.
 HostDisplayTexture* GetCachedTexture(const std::string& name);
 bool InvalidateCachedTexture(const std::string& path);
-void SetLoadTextureFunction(LoadTextureFunction callback);
-
-/// Rebuilds fonts to a new scale if needed. Returns true if fonts have changed and the texture needs updating.
-bool UpdateFonts();
-
-/// Removes the fullscreen fonts, leaving only the standard font.
-void ResetFonts();
-
-bool UpdateLayoutScale();
 
 void BeginLayout();
 void EndLayout();
