@@ -1059,7 +1059,9 @@ endif()
 
 if(PCSX2_CORE)
 	list(APPEND pcsx2FrontendSources
+		Frontend/FullscreenUI.cpp
 		Frontend/GameList.cpp
+		Frontend/ImGuiFullscreen.cpp
 		Frontend/INISettingsInterface.cpp
 		Frontend/InputManager.cpp
 		Frontend/InputSource.cpp
@@ -1069,7 +1071,9 @@ if(PCSX2_CORE)
 		VMManager.cpp
 	)
 	list(APPEND pcsx2FrontendHeaders
+		Frontend/FullscreenUI.h
 		Frontend/GameList.h
+		Frontend/ImGuiFullscreen.h
 		Frontend/INISettingsInterface.h
 		Frontend/InputManager.h
 		Frontend/InputSource.h

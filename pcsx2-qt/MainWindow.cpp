@@ -225,6 +225,7 @@ void MainWindow::connectSignals()
 
 void MainWindow::connectVMThreadSignals(EmuThread* thread)
 {
+	connect(m_ui.actionStartFullscreenUI, &QAction::triggered, thread, &EmuThread::startFullscreenUI);
 	connect(thread, &EmuThread::onCreateDisplayRequested, this, &MainWindow::createDisplay, Qt::BlockingQueuedConnection);
 	connect(thread, &EmuThread::onUpdateDisplayRequested, this, &MainWindow::updateDisplay, Qt::BlockingQueuedConnection);
 	connect(thread, &EmuThread::onDestroyDisplayRequested, this, &MainWindow::destroyDisplay, Qt::BlockingQueuedConnection);
@@ -1228,7 +1229,9 @@ void MainWindow::onVMStopped()
 	updateEmulationActions(false, false);
 	updateWindowTitle();
 	updateStatusBarWidgetVisibility();
-	switchToGameListView();
+
+	if (!g_emu_thread->isRunningFullscreenUI())
+		switchToGameListView();
 }
 
 void MainWindow::onGameChanged(const QString& path, const QString& serial, const QString& name, quint32 crc)
@@ -1336,6 +1339,7 @@ DisplayWidget* MainWindow::createDisplay(bool fullscreen, bool render_to_main)
 
 	updateWindowTitle();
 	m_display_widget->setFocus();
+	m_ui.actionStartFullscreenUI->setEnabled(false);
 
 	host_display->DoneRenderContextCurrent();
 	return m_display_widget;
@@ -1574,6 +1578,8 @@ void MainWindow::destroyDisplayWidget()
 		m_display_container->deleteLater();
 		m_display_container = nullptr;
 	}
+
+	m_ui.actionStartFullscreenUI->setEnabled(true);
 }
 
 void MainWindow::setDisplayFullscreen(const std::string& fullscreen_mode)

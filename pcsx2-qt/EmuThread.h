@@ -43,6 +43,7 @@ public:
 
 	__fi QEventLoop* getEventLoop() const { return m_event_loop; }
 	__fi bool isFullscreen() const { return m_is_fullscreen; }
+	__fi bool isRunningFullscreenUI() const { return m_run_fullscreen_ui; }
 
 	bool isOnEmuThread() const;
 
@@ -57,6 +58,7 @@ public:
 	void updatePerformanceMetrics(bool force);
 
 public Q_SLOTS:
+	void startFullscreenUI();
 	void startVM(std::shared_ptr<VMBootParameters> boot_params);
 	void resetVM();
 	void setVMPaused(bool paused);
@@ -138,6 +140,7 @@ private:
 	void createBackgroundControllerPollTimer();
 	void destroyBackgroundControllerPollTimer();
 	void loadOurSettings();
+	void loadOurInitialSettings();
 
 private Q_SLOTS:
 	void stopInThread();
@@ -158,6 +161,7 @@ private:
 	std::atomic_bool m_shutdown_flag{false};
 
 	bool m_verbose_status = false;
+	bool m_run_fullscreen_ui = false;
 	bool m_is_rendering_to_main = false;
 	bool m_is_fullscreen = false;
 	bool m_is_surfaceless = false;

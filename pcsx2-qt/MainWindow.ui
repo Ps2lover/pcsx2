@@ -78,6 +78,7 @@
     <addaction name="actionStartFile"/>
     <addaction name="actionStartDisc"/>
     <addaction name="actionStartBios"/>
+    <addaction name="actionStartFullscreenUI"/>
     <addaction name="separator"/>
     <addaction name="actionPowerOff"/>
     <addaction name="actionPowerOffWithoutSaving"/>
@@ -743,6 +744,11 @@
   <action name="actionSaveGSDump">
    <property name="text">
     <string>Save Single Frame GS Dump</string>
+   </property>
+  </action>
+  <action name="actionStartFullscreenUI">
+   <property name="text">
+    <string>Start Big Picture Mode</string>
    </property>
   </action>
  </widget>

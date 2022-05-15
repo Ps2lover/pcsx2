@@ -1260,6 +1260,8 @@
     <ClCompile Include="Frontend\imgui_impl_vulkan.cpp">
       <Filter>Host</Filter>
     </ClCompile>
+    <ClCompile Include="Frontend\ImGuiFullscreen.cpp" />
+    <ClCompile Include="Frontend\FullscreenUI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Patch.h">
@@ -2089,6 +2091,8 @@
     <ClInclude Include="Frontend\imgui_impl_vulkan.h">
       <Filter>Host</Filter>
     </ClInclude>
+    <ClInclude Include="Frontend\ImGuiFullscreen.h" />
+    <ClInclude Include="Frontend\FullscreenUI.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="GS\GS.rc">
