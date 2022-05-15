@@ -20,6 +20,7 @@ target_sources(common PRIVATE
 	FastFormatString.cpp
 	FastJmp.cpp
 	FileSystem.cpp
+	Image.cpp
 	Misc.cpp
 	MD5Digest.cpp
 	PathUtils.cpp
@@ -66,6 +67,7 @@ target_sources(common PRIVATE
 	Console.h
 	CrashHandler.h
 	Dependencies.h
+	Easing.h
 	EnumOps.h
 	EventSource.h
 	Exceptions.h
@@ -73,6 +75,8 @@ target_sources(common PRIVATE
 	FileSystem.h
 	General.h
 	HashCombine.h
+	Image.h
+	LRUCache.h
 	MemcpyFast.h
 	MemsetFast.inl
 	MD5Digest.h
@@ -264,7 +268,7 @@ if (USE_GCC AND CMAKE_INTERPROCEDURAL_OPTIMIZATION)
 	set_source_files_properties(FastJmp.cpp PROPERTIES COMPILE_FLAGS -fno-lto)
 endif()
 
-target_link_libraries(common PRIVATE ${LIBC_LIBRARIES} PUBLIC wxWidgets::all)
+target_link_libraries(common PRIVATE ${LIBC_LIBRARIES} PUBLIC wxWidgets::all PNG::PNG)
 target_compile_features(common PUBLIC cxx_std_17)
 target_include_directories(common PUBLIC ../3rdparty/include ../)
 target_compile_definitions(common PUBLIC "${PCSX2_DEFS}")
