@@ -19,6 +19,7 @@ target_sources(common PRIVATE
 	Exceptions.cpp
 	FastJmp.cpp
 	FileSystem.cpp
+	Image.cpp
 	Misc.cpp
 	MD5Digest.cpp
 	PrecompiledHeader.cpp
@@ -61,6 +62,7 @@ target_sources(common PRIVATE
 	boost_spsc_queue.hpp
 	Console.h
 	CrashHandler.h
+	Easing.h
 	EnumOps.h
 	EventSource.h
 	Exceptions.h
@@ -68,6 +70,8 @@ target_sources(common PRIVATE
 	FileSystem.h
 	General.h
 	HashCombine.h
+	Image.h
+	LRUCache.h
 	MemcpyFast.h
 	MemsetFast.inl
 	MD5Digest.h
@@ -259,6 +263,7 @@ endif()
 
 target_link_libraries(common PRIVATE
 	${LIBC_LIBRARIES}
+	PNG::PNG
 )
 
 target_link_libraries(common PUBLIC

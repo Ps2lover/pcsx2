@@ -187,6 +187,9 @@
     <ClCompile Include="TextureDecompress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AlignedMalloc.h">
@@ -433,6 +436,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TextureDecompress.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LRUCache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Easing.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
