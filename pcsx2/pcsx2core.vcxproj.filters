@@ -1269,6 +1269,8 @@
     <ClCompile Include="Recording\PadData.cpp">
       <Filter>Tools\Input Recording</Filter>
     </ClCompile>
+    <ClCompile Include="Frontend\ImGuiFullscreen.cpp" />
+    <ClCompile Include="Frontend\FullscreenUI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Patch.h">
@@ -2107,6 +2109,8 @@
     <ClInclude Include="Recording\PadData.h">
       <Filter>Tools\Input Recording</Filter>
     </ClInclude>
+    <ClInclude Include="Frontend\ImGuiFullscreen.h" />
+    <ClInclude Include="Frontend\FullscreenUI.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuildStep Include="rdebug\deci2.h">

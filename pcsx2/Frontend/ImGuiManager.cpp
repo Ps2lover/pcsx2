@@ -29,7 +29,9 @@
 
 #include "Config.h"
 #include "Counters.h"
+#include "Frontend/FullscreenUI.h"
 #include "Frontend/ImGuiManager.h"
+#include "Frontend/ImGuiFullscreen.h"
 #include "Frontend/InputManager.h"
 #include "GS.h"
 #include "GS/GS.h"
@@ -48,7 +50,7 @@ namespace ImGuiManager
 	static void SetKeyMap();
 	static bool LoadFontData();
 	static void UnloadFontData();
-	static bool AddImGuiFonts();
+	static bool AddImGuiFonts(bool fullscreen_fonts);
 	static ImFont* AddTextFont(float size);
 	static ImFont* AddFixedFont(float size);
 	static bool AddIconFonts(float size);
@@ -62,6 +64,8 @@ static float s_global_scale = 1.0f;
 
 static ImFont* s_standard_font;
 static ImFont* s_fixed_font;
+static ImFont* s_medium_font;
+static ImFont* s_large_font;
 
 static std::vector<u8> s_standard_font_data;
 static std::vector<u8> s_fixed_font_data;
@@ -102,6 +106,9 @@ bool ImGuiManager::Initialize()
 	SetKeyMap();
 	SetStyle();
 
+	if (FullscreenUI::IsInitialized())
+		ImGuiFullscreen::UpdateLayoutScale();
+
 	if (!display->CreateImGuiContext())
 	{
 		pxFailRel("Failed to create ImGui device context");
@@ -111,7 +118,7 @@ bool ImGuiManager::Initialize()
 		return false;
 	}
 
-	if (!AddImGuiFonts() || !display->UpdateImGuiFontTexture())
+	if (!AddImGuiFonts(FullscreenUI::IsInitialized()) || !display->UpdateImGuiFontTexture())
 	{
 		pxFailRel("Failed to create ImGui font text");
 		display->DestroyImGuiContext();
@@ -129,6 +136,8 @@ bool ImGuiManager::Initialize()
 
 void ImGuiManager::Shutdown()
 {
+	FullscreenUI::Shutdown();
+
 	HostDisplay* display = Host::GetHostDisplay();
 	if (display)
 		display->DestroyImGuiContext();
@@ -137,6 +146,9 @@ void ImGuiManager::Shutdown()
 
 	s_standard_font = nullptr;
 	s_fixed_font = nullptr;
+	s_medium_font = nullptr;
+	s_large_font = nullptr;
+	ImGuiFullscreen::SetFonts(nullptr, nullptr, nullptr);
 
 	UnloadFontData();
 }
@@ -163,7 +175,7 @@ void ImGuiManager::UpdateScale()
 	const float window_scale = display ? display->GetWindowScale() : 1.0f;
 	const float scale = std::max(window_scale * static_cast<float>(EmuConfig.GS.OsdScale / 100.0), 1.0f);
 
-	if (scale == s_global_scale)
+	if (scale == s_global_scale && (!HasFullscreenFonts() || !ImGuiFullscreen::UpdateLayoutScale()))
 		return;
 
 	// This is assumed to be called mid-frame.
@@ -176,7 +188,7 @@ void ImGuiManager::UpdateScale()
 	SetStyle();
 	ImGui::GetStyle().ScaleAllSizes(scale);
 
-	if (!AddImGuiFonts())
+	if (!AddImGuiFonts(HasFullscreenFonts()))
 		pxFailRel("Failed to create ImGui font text");
 
 	if (!display->UpdateImGuiFontTexture())
@@ -388,7 +400,7 @@ bool ImGuiManager::AddIconFonts(float size)
 				size * 0.75f, &cfg, range_fa) != nullptr);
 }
 
-bool ImGuiManager::AddImGuiFonts()
+bool ImGuiManager::AddImGuiFonts(bool fullscreen_fonts)
 {
 	const float standard_font_size = std::ceil(15.0f * s_global_scale);
 
@@ -403,7 +415,52 @@ bool ImGuiManager::AddImGuiFonts()
 	if (!s_fixed_font)
 		return false;
 
+	if (fullscreen_fonts)
+	{
+		const float medium_font_size = std::ceil(ImGuiFullscreen::LayoutScale(ImGuiFullscreen::LAYOUT_MEDIUM_FONT_SIZE));
+		s_medium_font = AddTextFont(medium_font_size);
+		if (!s_medium_font || !AddIconFonts(medium_font_size))
+			return false;
+
+		const float large_font_size = std::ceil(ImGuiFullscreen::LayoutScale(ImGuiFullscreen::LAYOUT_LARGE_FONT_SIZE));
+		s_large_font = AddTextFont(large_font_size);
+		if (!s_large_font || !AddIconFonts(large_font_size))
+			return false;
+	}
+	else
+	{
+		s_medium_font = nullptr;
+		s_large_font = nullptr;
+	}
+
+	ImGuiFullscreen::SetFonts(s_standard_font, s_medium_font, s_large_font);
+
 	return io.Fonts->Build();
+}
+
+bool ImGuiManager::AddFullscreenFontsIfMissing()
+{
+	if (HasFullscreenFonts())
+		return true;
+
+	// can't do this in the middle of a frame
+	ImGui::EndFrame();
+
+	if (!AddImGuiFonts(true))
+	{
+		Console.Error("Failed to lazily allocate fullscreen fonts.");
+		AddImGuiFonts(false);
+	}
+
+	Host::GetHostDisplay()->UpdateImGuiFontTexture();
+	NewFrame();
+
+	return HasFullscreenFonts();
+}
+
+bool ImGuiManager::HasFullscreenFonts()
+{
+	return (s_medium_font && s_large_font);
 }
 
 struct OSDMessage
@@ -757,6 +814,18 @@ ImFont* ImGuiManager::GetStandardFont()
 ImFont* ImGuiManager::GetFixedFont()
 {
 	return s_fixed_font;
+}
+
+ImFont* ImGuiManager::GetMediumFont()
+{
+	AddFullscreenFontsIfMissing();
+	return s_medium_font;
+}
+
+ImFont* ImGuiManager::GetLargeFont()
+{
+	AddFullscreenFontsIfMissing();
+	return s_large_font;
 }
 
 void ImGuiManager::ProcessHostMouseMoveEvent(s32 x, s32 y)

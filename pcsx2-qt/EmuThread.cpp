@@ -29,6 +29,7 @@
 #include "pcsx2/CDVD/CDVD.h"
 #include "pcsx2/Frontend/InputManager.h"
 #include "pcsx2/Frontend/ImGuiManager.h"
+#include "pcsx2/Frontend/FullscreenUI.h"
 #include "pcsx2/GS.h"
 #include "pcsx2/GS/GS.h"
 #include "pcsx2/GSDumpReplayer.h"
@@ -91,6 +92,28 @@ void EmuThread::stopInThread()
 	m_shutdown_flag.store(true);
 }
 
+void EmuThread::startFullscreenUI()
+{
+	if (!isOnEmuThread())
+	{
+		QMetaObject::invokeMethod(this, &EmuThread::startFullscreenUI, Qt::QueuedConnection);
+		return;
+	}
+
+	if (VMManager::HasValidVM())
+		return;
+
+	// we want settings loaded so we choose the correct renderer
+	// this also sorts out input sources.
+	loadOurSettings();
+	loadOurInitialSettings();
+	VMManager::LoadSettings();
+	m_run_fullscreen_ui = true;
+
+	if (!GetMTGS().WaitForOpen())
+		m_run_fullscreen_ui = false;
+}
+
 void EmuThread::startVM(std::shared_ptr<VMBootParameters> boot_params)
 {
 	if (!isOnEmuThread())
@@ -102,14 +125,13 @@ void EmuThread::startVM(std::shared_ptr<VMBootParameters> boot_params)
 
 	pxAssertRel(!VMManager::HasValidVM(), "VM is shut down");
 	loadOurSettings();
+	loadOurInitialSettings();
+
+	if (boot_params->fullscreen.has_value())
+		m_is_fullscreen = boot_params->fullscreen.value();
 
 	emit onVMStarting();
 
-	// create the display, this may take a while...
-	m_is_fullscreen = boot_params->fullscreen.value_or(Host::GetBaseBoolSettingValue("UI", "StartFullscreen", false));
-	m_is_rendering_to_main = Host::GetBaseBoolSettingValue("UI", "RenderToMainWindow", true);
-	m_is_surfaceless = false;
-	m_save_state_on_shutdown = false;
 	if (!VMManager::Initialize(*boot_params))
 		return;
 
@@ -246,6 +268,9 @@ void EmuThread::run()
 
 		executeVM();
 	}
+
+	if (m_run_fullscreen_ui && s_host_display)
+		releaseHostDisplay();
 
 	stopBackgroundControllerPollTimer();
 	destroyBackgroundControllerPollTimer();
@@ -410,6 +435,14 @@ void EmuThread::reloadGameSettings()
 void EmuThread::loadOurSettings()
 {
 	m_verbose_status = Host::GetBaseBoolSettingValue("UI", "VerboseStatusBar", false);
+}
+
+void EmuThread::loadOurInitialSettings()
+{
+	m_is_fullscreen = Host::GetBaseBoolSettingValue("UI", "StartFullscreen", false);
+	m_is_rendering_to_main = Host::GetBaseBoolSettingValue("UI", "RenderToMainWindow", true);
+	m_is_surfaceless = false;
+	m_save_state_on_shutdown = false;
 }
 
 void EmuThread::checkForSettingChanges()
@@ -697,6 +730,14 @@ HostDisplay* EmuThread::acquireHostDisplay(HostDisplay::RenderAPI api)
 	Console.WriteLn(Color_StrongGreen, "%s Graphics Driver Info:", HostDisplay::RenderAPIToString(s_host_display->GetRenderAPI()));
 	Console.Indent().WriteLn(s_host_display->GetDriverInfo());
 
+	if (m_run_fullscreen_ui && !FullscreenUI::Initialize())
+	{
+		Console.Error("Failed to initialize fullscreen UI");
+		releaseHostDisplay();
+		m_run_fullscreen_ui = false;
+		return nullptr;
+	}
+
 	return s_host_display.get();
 }
 
@@ -748,6 +789,7 @@ void Host::EndPresentFrame()
 	if (GSDumpReplayer::IsReplayingDump())
 		GSDumpReplayer::RenderUI();
 
+	FullscreenUI::Render();
 	ImGuiManager::RenderOSD();
 	s_host_display->EndPresent();
 	ImGuiManager::NewFrame();

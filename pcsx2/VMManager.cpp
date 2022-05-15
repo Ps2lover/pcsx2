@@ -55,6 +55,7 @@
 #include "DebugTools/MIPSAnalyst.h"
 #include "DebugTools/SymbolMap.h"
 
+#include "Frontend/FullscreenUI.h"
 #include "Frontend/INISettingsInterface.h"
 #include "Frontend/InputManager.h"
 #include "Frontend/GameList.h"
@@ -70,7 +71,6 @@
 
 namespace VMManager
 {
-	static void LoadSettings();
 	static void ApplyGameFixes();
 	static bool UpdateGameSettingsLayer();
 	static void CheckForConfigChanges(const Pcsx2Config& old_config);
@@ -133,6 +133,7 @@ static u32 s_active_no_interlacing_patches = 0;
 static s32 s_current_save_slot = 1;
 static u32 s_frame_advance_count = 0;
 static u32 s_mxcsr_saved;
+static bool s_gs_open_on_initialize = false;
 
 VMState VMManager::GetState()
 {
@@ -164,9 +165,15 @@ void VMManager::SetState(VMState state)
 
 		SPU2SetOutputPaused(state == VMState::Paused);
 		if (state == VMState::Paused)
+		{
 			Host::OnVMPaused();
+			FullscreenUI::OnVMPaused();
+		}
 		else
+		{
 			Host::OnVMResumed();
+			FullscreenUI::OnVMResumed();
+		}
 	}
 }
 
@@ -219,6 +226,12 @@ bool VMManager::Internal::InitializeGlobals()
 	x86caps.SIMD_EstablishMXCSRmask();
 	x86caps.CalculateMHz();
 	SysLogMachineCaps();
+
+	if (GSinit() != 0)
+	{
+		Host::ReportErrorAsync("Error", "Failed to initialize GS (GSinit()).");
+		return false;
+	}
 
 	return true;
 }
@@ -612,6 +625,12 @@ void VMManager::UpdateRunningGame(bool resetting, bool game_starting)
 	GetMTGS().SendGameCRC(new_crc);
 
 	Host::OnGameChanged(s_disc_path, s_game_serial, s_game_name, s_game_crc);
+	if (FullscreenUI::IsInitialized())
+	{
+		GetMTGS().RunOnGSThread([disc_path = s_disc_path, game_serial = s_game_serial, game_name = s_game_name, game_crc = s_game_crc]() {
+			FullscreenUI::OnRunningGameChanged(std::move(disc_path), std::move(game_serial), std::move(game_name), game_crc);
+		});
+	}
 
 #if 0
 	// TODO: Enable this when the debugger is added to Qt, and it's active. Otherwise, this is just a waste of time.
@@ -799,14 +818,18 @@ bool VMManager::Initialize(const VMBootParameters& boot_params)
 	ScopedGuard close_cdvd = [] { DoCDVDclose(); };
 
 	Console.WriteLn("Opening GS...");
-	if (!GetMTGS().WaitForOpen())
+	s_gs_open_on_initialize = GetMTGS().IsOpen();
+	if (!s_gs_open_on_initialize && !GetMTGS().WaitForOpen())
 	{
 		// we assume GS is going to report its own error
 		Console.WriteLn("Failed to open GS.");
 		return false;
 	}
 
-	ScopedGuard close_gs = []() { GetMTGS().WaitForClose(); };
+	ScopedGuard close_gs = []() {
+		if (!s_gs_open_on_initialize)
+			GetMTGS().WaitForClose();
+	};
 
 	Console.WriteLn("Opening SPU2...");
 	if (SPU2init() != 0 || SPU2open() != 0)
@@ -893,6 +916,7 @@ bool VMManager::Initialize(const VMBootParameters& boot_params)
 	Console.WriteLn("VM subsystems initialized in %.2f ms", init_timer.GetTimeMilliseconds());
 	s_state.store(VMState::Paused, std::memory_order_release);
 	Host::OnVMStarted();
+	FullscreenUI::OnVMStarted();
 
 	UpdateRunningGame(true, false);
 
@@ -967,7 +991,8 @@ void VMManager::Shutdown(bool save_resume_state)
 	DoCDVDclose();
 	FWclose();
 	FileMcd_EmuClose();
-	GetMTGS().WaitForClose();
+	if (!s_gs_open_on_initialize)
+		GetMTGS().WaitForClose();
 	USBshutdown();
 	SPU2shutdown();
 	PADshutdown();
@@ -978,6 +1003,7 @@ void VMManager::Shutdown(bool save_resume_state)
 
 	s_state.store(VMState::Shutdown, std::memory_order_release);
 	Host::OnVMDestroyed();
+	FullscreenUI::OnVMDestroyed();
 }
 
 void VMManager::Reset()
@@ -1657,6 +1683,10 @@ DEFINE_HOTKEY("SaveStateToSlot", "Save States", "Save State To Selected Slot", [
 DEFINE_HOTKEY("LoadStateFromSlot", "Save States", "Load State From Selected Slot", [](bool pressed) {
 	if (!pressed)
 		VMManager::LoadStateFromSlot(s_current_save_slot);
+})
+DEFINE_HOTKEY("OpenPauseMenu", "General", "Open Pause Menu", [](bool pressed) {
+	if (!pressed)
+		FullscreenUI::OpenPauseMenu();
 })
 END_HOTKEY_LIST()
 
