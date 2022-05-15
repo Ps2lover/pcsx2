@@ -126,7 +126,7 @@ DECLARE_HOTKEY_LIST(g_gs_hotkeys);
 DECLARE_HOTKEY_LIST(g_host_hotkeys);
 
 /// Generic input bindings. These roughly match a DualShock 4 or XBox One controller.
-/// They are used for automatic binding to PS2 controller types.
+/// They are used for automatic binding to PS2 controller types, and for big picture mode navigation.
 enum class GenericInputBinding : u8
 {
 	Unknown,
@@ -243,7 +243,7 @@ namespace InputManager
 
 	/// Updates internal state for any binds for this key, and fires callbacks as needed.
 	/// Returns true if anything was bound to this key, otherwise false.
-	bool InvokeEvents(InputBindingKey key, float value);
+	bool InvokeEvents(InputBindingKey key, float value, GenericInputBinding generic_key = GenericInputBinding::Unknown);
 
 	/// Sets a hook which can be used to intercept events before they're processed by the normal bindings.
 	/// This is typically used when binding new controls to detect what gets pressed.
