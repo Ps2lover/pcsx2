@@ -271,6 +271,19 @@ if(QT_BUILD)
 	add_subdirectory(3rdparty/sdl2 EXCLUDE_FROM_ALL)
 endif()
 
+# NoGUI needs X and Wayland libraries depending on what's configured.
+if(NOGUI_BUILD)
+	if(WAYLAND_API)
+		find_package(ECM REQUIRED NO_MODULE)
+		list(APPEND CMAKE_MODULE_PATH "${ECM_MODULE_PATH}")
+		find_package(Wayland REQUIRED Client)
+		find_package(WaylandScanner REQUIRED)
+		find_package(WaylandProtocols 1.15 REQUIRED)
+		find_package(XKBCommon REQUIRED)
+		make_imported_target_if_missing(XKBCommon::XKBCommon XKBCOMMON)
+	endif()
+endif()
+
 add_subdirectory(3rdparty/lzma EXCLUDE_FROM_ALL)
 add_subdirectory(3rdparty/libchdr EXCLUDE_FROM_ALL)
 
