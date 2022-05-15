@@ -69,6 +69,7 @@ void GSvsync(u32 field, bool registers_written);
 int GSfreeze(FreezeAction mode, freezeData* data);
 void GSQueueSnapshot(const std::string& path, u32 gsdump_frames = 0);
 void GSStopGSDump();
+void GSRunIdle();
 #ifndef PCSX2_CORE
 void GSkeyEvent(const HostKeyEvent& e);
 void GSconfigure();

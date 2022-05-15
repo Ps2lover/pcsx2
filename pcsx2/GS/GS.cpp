@@ -513,6 +513,11 @@ void GSStopGSDump()
 		g_gs_renderer->StopGSDump();
 }
 
+void GSRunIdle()
+{
+	g_gs_renderer->RunIdle();
+}
+
 #ifndef PCSX2_CORE
 
 void GSkeyEvent(const HostKeyEvent& e)
