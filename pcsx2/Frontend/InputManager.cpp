@@ -16,6 +16,7 @@
 #include "PrecompiledHeader.h"
 #include "Frontend/InputManager.h"
 #include "Frontend/InputSource.h"
+#include "Frontend/ImGuiManager.h"
 #include "PAD/Host/PAD.h"
 #include "common/StringUtil.h"
 #include "common/Timer.h"
@@ -552,9 +553,13 @@ bool InputManager::IsAxisHandler(const InputEventHandler& handler)
 	return std::holds_alternative<InputAxisEventHandler>(handler);
 }
 
-bool InputManager::InvokeEvents(InputBindingKey key, float value)
+bool InputManager::InvokeEvents(InputBindingKey key, float value, GenericInputBinding generic_key)
 {
 	if (DoEventHook(key, value))
+		return true;
+
+	// does imgui want the event?
+	if (generic_key != GenericInputBinding::Unknown && ImGuiManager::ProcessGenericInputEvent(generic_key, value))
 		return true;
 
 	// find all the bindings associated with this key

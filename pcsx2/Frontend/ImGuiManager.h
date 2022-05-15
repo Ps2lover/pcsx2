@@ -17,6 +17,9 @@
 
 struct ImFont;
 
+union InputBindingKey;
+enum class GenericInputBinding : u8;
+
 namespace ImGuiManager
 {
 	/// Initializes ImGui, creates fonts, etc.
@@ -45,5 +48,23 @@ namespace ImGuiManager
 
 	/// Returns the fixed-width font for external drawing.
 	ImFont* GetFixedFont();
+
+	/// Called on the UI or CPU thread in response to mouse movement.
+	void ProcessHostMouseMoveEvent(s32 x, s32 y);
+
+	/// Called on the CPU thread in response to a mouse button press.
+	/// Returns true if ImGui intercepted the event, and regular handlers should not execute.
+	bool ProcessHostMouseButtonEvent(InputBindingKey key, float value);
+
+	/// Called on the CPU thread in response to a mouse wheel movement.
+	/// Returns true if ImGui intercepted the event, and regular handlers should not execute.
+	bool ProcessHostMouseWheelEvent(InputBindingKey key, float value);
+
+	/// Called on the CPU thread in response to a key press.
+	/// Returns true if ImGui intercepted the event, and regular handlers should not execute.
+	bool ProcessHostKeyEvent(InputBindingKey key, float value);
+
+	/// Called on the CPU thread when any input event fires. Allows imgui to take over controller navigation.
+	bool ProcessGenericInputEvent(GenericInputBinding key, float value);
 } // namespace ImGuiManager
 
