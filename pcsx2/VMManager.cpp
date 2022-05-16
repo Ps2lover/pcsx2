@@ -110,7 +110,7 @@ static std::unique_ptr<INISettingsInterface> s_game_settings_interface;
 static std::unique_ptr<INISettingsInterface> s_input_settings_interface;
 
 static std::atomic<VMState> s_state{VMState::Shutdown};
-static std::atomic_bool s_cpu_implementation_changed{false};
+static bool s_cpu_implementation_changed = false;
 static Threading::ThreadHandle s_vm_thread_handle;
 
 static std::deque<std::thread> s_save_state_threads;
@@ -136,16 +136,16 @@ static u32 s_mxcsr_saved;
 
 VMState VMManager::GetState()
 {
-	return s_state.load();
+	return s_state.load(std::memory_order_acquire);
 }
 
 void VMManager::SetState(VMState state)
 {
 	// Some state transitions aren't valid.
-	const VMState old_state = s_state.load();
+	const VMState old_state = s_state.load(std::memory_order_acquire);
 	pxAssert(state != VMState::Initializing && state != VMState::Shutdown);
 	SetTimerResolutionIncreased(state == VMState::Running);
-	s_state.store(state);
+	s_state.store(state, std::memory_order_release);
 
 	if (state != VMState::Stopping && (state == VMState::Paused || old_state == VMState::Paused))
 	{
@@ -172,7 +172,7 @@ void VMManager::SetState(VMState state)
 
 bool VMManager::HasValidVM()
 {
-	const VMState state = s_state.load();
+	const VMState state = s_state.load(std::memory_order_acquire);
 	return (state == VMState::Running || state == VMState::Paused);
 }
 
@@ -755,14 +755,14 @@ bool VMManager::CheckBIOSAvailability()
 bool VMManager::Initialize(const VMBootParameters& boot_params)
 {
 	const Common::Timer init_timer;
-	pxAssertRel(s_state.load() == VMState::Shutdown, "VM is shutdown");
+	pxAssertRel(s_state.load(std::memory_order_acquire) == VMState::Shutdown, "VM is shutdown");
 
 	// cancel any game list scanning, we need to use CDVD!
 	// TODO: we can get rid of this once, we make CDVD not use globals...
 	// (or make it thread-local, but that seems silly.)
 	Host::CancelGameListRefresh();
 
-	s_state.store(VMState::Initializing);
+	s_state.store(VMState::Initializing, std::memory_order_release);
 	s_vm_thread_handle = Threading::ThreadHandle::GetForCallingThread();
 	Host::OnVMStarting();
 
@@ -771,7 +771,7 @@ bool VMManager::Initialize(const VMBootParameters& boot_params)
 			GSDumpReplayer::Shutdown();
 
 		s_vm_thread_handle = {};
-		s_state.store(VMState::Shutdown);
+		s_state.store(VMState::Shutdown, std::memory_order_release);
 		Host::OnVMDestroyed();
 	};
 
@@ -879,7 +879,7 @@ bool VMManager::Initialize(const VMBootParameters& boot_params)
 	s_mxcsr_saved = static_cast<u32>(a64_getfpcr());
 #endif
 
-	s_cpu_implementation_changed.store(false);
+	s_cpu_implementation_changed = false;
 	s_cpu_provider_pack->ApplyConfig();
 	SetCPUState(EmuConfig.Cpu.sseMXCSR, EmuConfig.Cpu.sseVUMXCSR);
 	SysClearExecutionCache();
@@ -891,7 +891,7 @@ bool VMManager::Initialize(const VMBootParameters& boot_params)
 	cpuReset();
 
 	Console.WriteLn("VM subsystems initialized in %.2f ms", init_timer.GetTimeMilliseconds());
-	s_state.store(VMState::Paused);
+	s_state.store(VMState::Paused, std::memory_order_release);
 	Host::OnVMStarted();
 
 	UpdateRunningGame(true, false);
@@ -915,6 +915,10 @@ bool VMManager::Initialize(const VMBootParameters& boot_params)
 
 void VMManager::Shutdown(bool save_resume_state)
 {
+	// we'll probably already be stopping (this is how Qt calls shutdown),
+	// but just in case, so any of the stuff we call here knows we don't have a valid VM.
+	s_state.store(VMState::Stopping, std::memory_order_release);
+
 	SetTimerResolutionIncreased(false);
 
 	// sync everything
@@ -972,7 +976,7 @@ void VMManager::Shutdown(bool save_resume_state)
 
 	s_vm_memory->DecommitAll();
 
-	s_state.store(VMState::Shutdown);
+	s_state.store(VMState::Shutdown, std::memory_order_release);
 	Host::OnVMDestroyed();
 }
 
@@ -1279,7 +1283,7 @@ bool VMManager::IsLoadableFileName(const std::string_view& path)
 void VMManager::Execute()
 {
 	// Check for interpreter<->recompiler switches.
-	if (s_cpu_implementation_changed.exchange(false))
+	if (std::exchange(s_cpu_implementation_changed, false))
 	{
 		// We need to switch the cpus out, and reset the new ones if so.
 		s_cpu_provider_pack->ApplyConfig();
@@ -1306,7 +1310,7 @@ const std::string& VMManager::Internal::GetElfOverride()
 
 bool VMManager::Internal::IsExecutionInterrupted()
 {
-	return s_state.load() != VMState::Running || s_cpu_implementation_changed.load();
+	return s_state.load(std::memory_order_relaxed) != VMState::Running || s_cpu_implementation_changed;
 }
 
 void VMManager::Internal::EntryPointCompilingOnCPUThread()
@@ -1369,7 +1373,7 @@ void VMManager::CheckForCPUConfigChanges(const Pcsx2Config& old_config)
 		// This has to be done asynchronously, since we're still executing the
 		// cpu when this function is called. Break the execution as soon as
 		// possible and reset next time we're called.
-		s_cpu_implementation_changed.store(true);
+		s_cpu_implementation_changed = true;
 	}
 
 	if (EmuConfig.Cpu.AffinityControlMode != old_config.Cpu.AffinityControlMode ||
@@ -1528,7 +1532,7 @@ void VMManager::ApplySettings()
 	Console.WriteLn("Applying settings...");
 
 	// if we're running, ensure the threads are synced
-	const bool running = (s_state.load() == VMState::Running);
+	const bool running = (s_state.load(std::memory_order_acquire) == VMState::Running);
 	if (running)
 	{
 		if (THREAD_VU1)
