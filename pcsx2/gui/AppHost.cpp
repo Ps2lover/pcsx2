@@ -126,6 +126,9 @@ HostDisplay* Host::AcquireHostDisplay(HostDisplay::RenderAPI api)
 		return nullptr;
 	}
 
+	s_host_display->SetVSync(EmuConfig.GetEffectiveVsyncMode());
+	s_host_display->SetGPUTimingEnabled(EmuConfig.GS.OsdShowGPU);
+
 	Console.WriteLn(Color_StrongGreen, "%s Graphics Driver Info:", HostDisplay::RenderAPIToString(s_host_display->GetRenderAPI()));
 	Console.Indent().WriteLn(s_host_display->GetDriverInfo());
 

@@ -280,9 +280,6 @@ static bool DoGSOpen(GSRendererType renderer, u8* basemem)
 	}
 
 	g_gs_renderer->SetRegsMem(basemem);
-
-	display->SetVSync(EmuConfig.GetEffectiveVsyncMode());
-	display->SetGPUTimingEnabled(GSConfig.OsdShowGPU);
 	return true;
 }
 

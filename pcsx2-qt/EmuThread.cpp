@@ -44,7 +44,6 @@
 #include "QtUtils.h"
 
 EmuThread* g_emu_thread = nullptr;
-WindowInfo g_gs_window_info;
 
 static std::unique_ptr<HostDisplay> s_host_display;
 
@@ -674,7 +673,8 @@ HostDisplay* EmuThread::acquireHostDisplay(HostDisplay::RenderAPI api)
 		return nullptr;
 	}
 
-	g_gs_window_info = s_host_display->GetWindowInfo();
+	s_host_display->SetVSync(EmuConfig.GetEffectiveVsyncMode());
+	s_host_display->SetGPUTimingEnabled(EmuConfig.GS.OsdShowGPU);
 
 	Console.WriteLn(Color_StrongGreen, "%s Graphics Driver Info:", HostDisplay::RenderAPIToString(s_host_display->GetRenderAPI()));
 	Console.Indent().WriteLn(s_host_display->GetDriverInfo());
@@ -691,8 +691,6 @@ void EmuThread::releaseHostDisplay()
 		s_host_display->DestroyRenderSurface();
 		s_host_display->DestroyRenderDevice();
 	}
-
-	g_gs_window_info = WindowInfo();
 
 	emit onDestroyDisplayRequested();
 
