@@ -908,6 +908,9 @@ void SysMtgsThread::Freeze(FreezeAction mode, MTGS_FreezeData& data)
 void SysMtgsThread::RunOnGSThread(AsyncCallType func)
 {
 	SendPointerPacket(GS_RINGTYPE_ASYNC_CALL, 0, new AsyncCallType(std::move(func)));
+
+	// wake the gs thread in case it's sleeping
+	SetEvent();
 }
 
 void SysMtgsThread::ApplySettings()
@@ -989,4 +992,9 @@ bool SysMtgsThread::SaveMemorySnapshot(u32 width, u32 height, std::vector<u32>* 
 	});
 	WaitGS(false, false, false);
 	return result;
+}
+
+void SysMtgsThread::PresentCurrentFrame()
+{
+	GSPresentCurrentFrame();
 }
