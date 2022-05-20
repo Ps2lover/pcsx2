@@ -94,6 +94,7 @@ public Q_SLOTS:
 	void requestExit();
 
 private Q_SLOTS:
+	void onApplicationStateChanged(Qt::ApplicationState state);
 	void onUpdateCheckComplete();
 
 	DisplayWidget* createDisplay(bool fullscreen, bool render_to_main);
@@ -225,6 +226,7 @@ private:
 	bool m_save_states_invalidated = false;
 	bool m_was_paused_on_surface_loss = false;
 	bool m_was_disc_change_request = false;
+	bool m_was_fullscreen_on_focus_loss = false;
 
 	QString m_last_fps_status;
 };

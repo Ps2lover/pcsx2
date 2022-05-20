@@ -135,6 +135,8 @@ void MainWindow::setupAdditionalUi()
 
 void MainWindow::connectSignals()
 {
+	connect(qApp, &QGuiApplication::applicationStateChanged, this, &MainWindow::onApplicationStateChanged);
+
 	connect(m_ui.actionStartFile, &QAction::triggered, this, &MainWindow::onStartFileActionTriggered);
 	connect(m_ui.actionStartBios, &QAction::triggered, this, &MainWindow::onStartBIOSActionTriggered);
 	connect(m_ui.actionChangeDisc, &QAction::triggered, [this] { m_ui.menuChangeDisc->exec(QCursor::pos()); });
@@ -804,6 +806,32 @@ void MainWindow::requestExit()
 	close();
 }
 
+void MainWindow::onApplicationStateChanged(Qt::ApplicationState state)
+{
+	if (!m_vm_valid)
+		return;
+
+	QWidget* container = getDisplayContainer();
+	if (state != Qt::ApplicationActive)
+	{
+		// TODO: EFS check.
+		QWidget* container = getDisplayContainer();
+		if (container && container->isFullScreen() && m_vm_paused)
+		{
+			m_was_fullscreen_on_focus_loss = true;
+			g_emu_thread->setFullscreen(false);
+		}
+	}
+	else
+	{
+		if (std::exchange(m_was_fullscreen_on_focus_loss, false))
+		{
+			if (!container || !container->isFullScreen())
+				g_emu_thread->setFullscreen(true);
+		}
+	}
+}
+
 void Host::InvalidateSaveStateCache()
 {
 	QMetaObject::invokeMethod(g_main_window, &MainWindow::invalidateSaveStateCache, Qt::QueuedConnection);
@@ -1179,6 +1207,7 @@ void MainWindow::onVMStarted()
 {
 	m_vm_valid = true;
 	m_was_disc_change_request = false;
+	m_was_fullscreen_on_focus_loss = false;
 	updateEmulationActions(true, true);
 	updateWindowTitle();
 	updateStatusBarWidgetVisibility();
