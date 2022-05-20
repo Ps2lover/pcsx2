@@ -65,6 +65,7 @@ public:
 
 	void QueueSnapshot(const std::string& path, u32 gsdump_frames);
 	void StopGSDump();
+	void PresentCurrentFrame();
 
 #ifndef PCSX2_CORE
 	bool BeginCapture(std::string& filename);

@@ -378,9 +378,14 @@ public:
 	/// Fully stops the thread, closing in the process if needed.
 	void ShutdownThread();
 
-	// Waits for the GS to empty out the entire ring buffer contents.
+	/// Waits for the GS to empty out the entire ring buffer contents.
 	void WaitGS(bool syncRegs=true, bool weakWait=false, bool isMTVU=false);
+
 	void ResetGS();
+
+	/// Re-presents the current frame. Call when things like window resizes happen to re-display
+	/// the current frame with the correct proportions. Should only be called on the GS thread.
+	void PresentCurrentFrame();
 
 	void PrepDataPacket( MTGS_RingCommand cmd, u32 size );
 	void PrepDataPacket( GIF_PATH pathidx, u32 size );
