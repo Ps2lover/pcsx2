@@ -27,6 +27,12 @@
 #include <ShlObj.h>
 #endif
 
+#ifdef _UWP
+#include <winrt/Windows.ApplicationModel.Core.h>
+#include <winrt/Windows.Storage.h>
+#include <winrt/base.h>
+#endif
+
 #include "fmt/core.h"
 
 #include "common/Assertions.h"
@@ -183,7 +189,10 @@ void NoGUIHost::SetDataDirectory()
 		return;
 	}
 
-#if defined(_WIN32)
+#if defined(_UWP)
+	const auto local_location = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+	EmuFolders::DataRoot = StringUtil::WideStringToUTF8String(local_location.Path());
+#elif defined(_WIN32)
 	// On Windows, use My Documents\PCSX2 to match old installs.
 	PWSTR documents_directory;
 	if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, NULL, &documents_directory)))
@@ -561,7 +570,7 @@ void NoGUIHost::ProcessCPUThreadPlatformMessages()
 	// This is lame. On Win32, we need to pump messages, even though *we* don't have any windows
 	// on the CPU thread, because SDL creates a hidden window for raw input for some game controllers.
 	// If we don't do this, we don't get any controller events.
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_UWP)
 	MSG msg;
 	while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
 	{
@@ -1063,7 +1072,7 @@ void NoGUIHost::HookSignals()
 }
 
 // Replacement for Console so we actually get output to our console window on Windows.
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_UWP)
 
 static bool s_debugger_attached = false;
 static bool s_console_handle_set = false;
@@ -1271,6 +1280,68 @@ static void SetSystemConsoleEnabled(bool enabled)
 				FreeConsole();
 			}
 		}
+	}
+}
+
+#elif defined(_UWP)
+
+// UWP we just send everything to the debugger.
+static bool s_debugger_attached = false;
+
+static void ConsoleWinUWP_SetTitle(const char* title)
+{
+}
+
+static void ConsoleWinUWP_DoSetColor(ConsoleColors color)
+{
+}
+
+static void ConsoleWinUWP_Newline()
+{
+	if (s_debugger_attached)
+		OutputDebugStringW(L"\n");
+}
+
+static void ConsoleWinUWP_DoWrite(const char* fmt)
+{
+	// TODO: Put this on the stack.
+	if (s_debugger_attached)
+	{
+		std::wstring wfmt(StringUtil::UTF8StringToWideString(fmt));
+		OutputDebugStringW(wfmt.c_str());
+	}
+}
+
+static void ConsoleWinUWP_DoWriteLn(const char* fmt)
+{
+	// TODO: Put this on the stack.
+	if (s_debugger_attached)
+	{
+		std::wstring wfmt(StringUtil::UTF8StringToWideString(fmt));
+		OutputDebugStringW(wfmt.c_str());
+		OutputDebugStringW(L"\n");
+	}
+}
+
+static const IConsoleWriter ConsoleWriter_WinQt = {
+	ConsoleWinUWP_DoWrite,
+	ConsoleWinUWP_DoWriteLn,
+	ConsoleWinUWP_DoSetColor,
+	ConsoleWinUWP_DoWrite,
+	ConsoleWinUWP_Newline,
+	ConsoleWinUWP_SetTitle,
+};
+
+static void SetSystemConsoleEnabled(bool enabled)
+{
+	if (enabled)
+	{
+		s_debugger_attached = IsDebuggerPresent();
+		Console_SetActiveHandler(s_debugger_attached ? ConsoleWriter_WinQt : ConsoleWriter_Null);
+	}
+	else
+	{
+		Console_SetActiveHandler(ConsoleWriter_Null);
 	}
 }
 
