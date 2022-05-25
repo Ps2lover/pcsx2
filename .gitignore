@@ -108,3 +108,5 @@ oprofile_data/
 CMakeSettings.json
 /ci-artifacts/
 /out/
+
+Generated Files

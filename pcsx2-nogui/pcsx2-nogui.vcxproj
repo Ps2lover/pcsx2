@@ -6,6 +6,11 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3201A43D-E79E-45D1-9787-B60C397AB8EA}</ProjectGuid>
   </PropertyGroup>
+  <PropertyGroup Label="Globals" Condition="$(Configuration.Contains(UWP))">
+    <CppWinRTOptimized Condition="!$(Configuration.Contains(Release))">true</CppWinRTOptimized>
+    <CppWinRTRootNamespaceAutoMerge>false</CppWinRTRootNamespaceAutoMerge>
+    <CppWinRTGenerateWindowsMetadata>false</CppWinRTGenerateWindowsMetadata>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -21,6 +26,7 @@
     <Import Project="$(SolutionDir)common\vsprops\common.props" />
     <Import Project="$(SolutionDir)common\vsprops\BaseProperties.props" />
     <Import Project="$(SolutionDir)common\vsprops\3rdpartyDeps.props" />
+    <Import Project="$(SolutionDir)common\vsprops\CodeGen.props" />
     <Import Condition="$(Configuration.Contains(Debug))" Project="$(SolutionDir)common\vsprops\CodeGen_Debug.props" />
     <Import Condition="$(Configuration.Contains(Devel))" Project="$(SolutionDir)common\vsprops\CodeGen_Devel.props" />
     <Import Condition="$(Configuration.Contains(Release))" Project="$(SolutionDir)common\vsprops\CodeGen_Release.props" />
@@ -36,10 +42,10 @@
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\xbyak;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\freetype\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\xz\xz\src\liblzma\api;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\baseclasses;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="!$(Configuration.Contains(UWP))">$(SolutionDir)3rdparty\baseclasses;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\libpng;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\glad\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="!$(Configuration.Contains(UWP))">$(SolutionDir)3rdparty\glad\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(SolutionDir)3rdparty\simpleini\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir)pcsx2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <!-- Needed for moc pch -->
@@ -76,7 +82,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="$(SolutionDir)3rdparty\baseclasses\baseclasses.vcxproj">
+    <ProjectReference Include="$(SolutionDir)3rdparty\baseclasses\baseclasses.vcxproj" Condition="!$(Configuration.Contains(UWP))">
       <Project>{27f17499-a372-4408-8afa-4f9f4584fbd3}</Project>
     </ProjectReference>
     <ProjectReference Include="$(SolutionDir)3rdparty\fmt\fmt.vcxproj">
@@ -116,24 +122,32 @@
     <ProjectReference Include="$(SolutionDir)pcsx2\pcsx2core.vcxproj">
       <Project>{6c7986c4-3e4d-4dcc-b3c6-6bb12b238995}</Project>
     </ProjectReference>
-    <ProjectReference Include="$(SolutionDir)3rdparty\glad\glad.vcxproj">
+    <ProjectReference Include="$(SolutionDir)3rdparty\glad\glad.vcxproj" Condition="!$(Configuration.Contains(UWP))">
       <Project>{c0293b32-5acf-40f0-aa6c-e6da6f3bf33a}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Main.cpp">
+      <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="NoGUIHost.cpp" />
     <ClCompile Include="PrecompiledHeader.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Win32NoGUIPlatform.cpp" />
+    <ClCompile Include="Win32NoGUIPlatform.cpp">
+      <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NoGUIHost.h" />
     <ClInclude Include="NoGUIPlatform.h" />
     <ClInclude Include="PrecompiledHeader.h" />
-    <ClInclude Include="Win32KeyNames.h" />
-    <ClInclude Include="Win32NoGUIPlatform.h" />
+    <ClInclude Include="Win32KeyNames.h">
+      <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Win32NoGUIPlatform.h">
+      <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="pcsx2-nogui.manifest" />
@@ -142,6 +156,6 @@
     <ResourceCompile Include="..\pcsx2\PCSX2.rc" />
     <ResourceCompile Include="..\pcsx2\windows\wxResources.rc" />
   </ItemGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(SolutionDir)common\vsprops\Targets.props" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

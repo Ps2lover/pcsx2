@@ -9,7 +9,7 @@
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet Condition="!$(Configuration.Contains(UWP))">Unicode</CharacterSet>
     <WholeProgramOptimization Condition="$(Configuration.Contains(Release))">true</WholeProgramOptimization>
     <UseDebugLibraries Condition="$(Configuration.Contains(Debug))">true</UseDebugLibraries>
     <UseDebugLibraries Condition="!$(Configuration.Contains(Debug))">false</UseDebugLibraries>
@@ -19,6 +19,7 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(SolutionDir)3rdparty\DefaultProjectRootDir.props" />
     <Import Project="$(SolutionDir)3rdparty\3rdparty.props" />
+    <Import Project="$(SolutionDir)common\vsprops\CodeGen.props" />
     <Import Condition="$(Configuration.Contains(Debug))" Project="$(SolutionDir)common\vsprops\CodeGen_Debug.props" />
     <Import Condition="$(Configuration.Contains(Devel))" Project="$(SolutionDir)common\vsprops\CodeGen_Devel.props" />
     <Import Condition="$(Configuration.Contains(Release))" Project="$(SolutionDir)common\vsprops\CodeGen_Release.props" />
@@ -42,6 +43,6 @@
     <ClInclude Include="mid_qual_coeffs.h" />
     <ClInclude Include="samplerate.h" />
   </ItemGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(SolutionDir)common\vsprops\Targets.props" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>
