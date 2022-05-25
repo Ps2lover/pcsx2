@@ -123,7 +123,11 @@ s32 DEV9init()
 	FLASHinit();
 
 #ifdef _WIN32
+#ifndef _UWP
 	hEeprom = CreateFile(
+#else
+	hEeprom = CreateFileFromAppW(
+#endif
 		L"eeprom.dat",
 		GENERIC_READ | GENERIC_WRITE,
 		0,

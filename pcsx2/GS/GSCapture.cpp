@@ -18,9 +18,10 @@
 #include "GSPng.h"
 #include "GSUtil.h"
 #include "GSExtra.h"
+#include "common/FileSystem.h"
 #include "common/StringUtil.h"
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_UWP)
 
 static void __stdcall ClosePinInfo(_Inout_ PIN_INFO* info) WI_NOEXCEPT
 {
@@ -417,11 +418,11 @@ bool GSCapture::BeginCapture(float fps, GSVector2i recommendedResolution, float 
 	// reload settings because they may have changed
 	m_out_dir = theApp.GetConfigS("capture_out_dir");
 	m_threads = theApp.GetConfigI("capture_threads");
-#if defined(__unix__)
+#if defined(__unix__) || defined(_UWP)
 	m_compression_level = theApp.GetConfigI("png_compression_level");
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_UWP)
 
 	GSCaptureDlg dlg;
 
@@ -527,9 +528,9 @@ bool GSCapture::BeginCapture(float fps, GSVector2i recommendedResolution, float 
 	m_capturing = true;
 	filename = StringUtil::WideStringToUTF8String(dlg.m_filename.erase(dlg.m_filename.length() - 3, 3) + L"wav");
 	return true;
-#elif defined(__unix__)
+#elif defined(__unix__) || defined(_UWP)
 	// Note I think it doesn't support multiple depth creation
-	GSmkdir(m_out_dir.c_str());
+	FileSystem::CreateDirectoryPath(m_out_dir.c_str(), false);
 
 	// Really cheap recording
 	m_frame = 0;
@@ -559,7 +560,7 @@ bool GSCapture::DeliverFrame(const void* bits, int pitch, bool rgba)
 		return false;
 	}
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_UWP)
 
 	if (m_src)
 	{
@@ -568,7 +569,7 @@ bool GSCapture::DeliverFrame(const void* bits, int pitch, bool rgba)
 		return true;
 	}
 
-#elif defined(__unix__)
+#elif defined(__unix__) || defined(_UWP)
 
 	std::string out_file = m_out_dir + StringUtil::StdStringFromFormat("/frame.%010d.png", m_frame);
 	//GSPng::Save(GSPng::RGB_PNG, out_file, (u8*)bits, m_size.x, m_size.y, pitch, m_compression_level);
@@ -588,7 +589,7 @@ bool GSCapture::EndCapture()
 
 	std::lock_guard<std::recursive_mutex> lock(m_lock);
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_UWP)
 
 	if (m_src)
 	{
@@ -602,7 +603,7 @@ bool GSCapture::EndCapture()
 		m_graph.reset();;
 	}
 
-#elif defined(__unix__)
+#elif defined(__unix__) || defined(_UWP)
 	m_workers.clear();
 
 	m_frame = 0;

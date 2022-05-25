@@ -901,6 +901,8 @@ const std::string root_hw("/tmp/GS_HW_dump32/");
 
 #ifdef _WIN32
 
+#ifndef _UWP
+
 void* vmalloc(size_t size, bool code)
 {
 	void* ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, code ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE);
@@ -989,6 +991,103 @@ void fifo_free(void* ptr, size_t size, size_t repeat)
 	CloseHandle(s_fh);
 	s_fh = NULL;
 }
+
+#else
+
+void* vmalloc(size_t size, bool code)
+{
+	void* ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	if (!ptr)
+		throw std::bad_alloc();
+
+	if (code)
+	{
+		ULONG old_protect;
+		if (!VirtualProtectFromApp(ptr, size, PAGE_EXECUTE_READWRITE, &old_protect))
+		{
+			VirtualFree(ptr, 0, MEM_RELEASE);
+			throw std::bad_alloc();
+		}
+	}
+
+	return ptr;
+}
+
+void vmfree(void* ptr, size_t size)
+{
+	VirtualFree(ptr, 0, MEM_RELEASE);
+}
+
+static HANDLE s_fh = NULL;
+
+void* fifo_alloc(size_t size, size_t repeat)
+{
+	ASSERT(s_fh == NULL);
+
+	s_fh = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, size, nullptr);
+	if (s_fh == NULL)
+	{
+		Console.Error("Failed to reserve memory. WIN API ERROR:%u", GetLastError());
+		return vmalloc(size * repeat, false); // Fallback to default vmalloc
+	}
+
+	// map the whole area with repeats
+	u8* base = static_cast<u8*>(VirtualAlloc2FromApp(
+		GetCurrentProcess(), nullptr, repeat * size,
+		MEM_RESERVE | MEM_RESERVE_PLACEHOLDER, PAGE_NOACCESS,
+		nullptr, 0));
+	if (base)
+	{
+		bool okay = true;
+		for (size_t i = 0; i < repeat; i++)
+		{
+			// everything except the last needs the placeholders split to map over them
+			u8* addr = base + i * size;
+			if ((i != (repeat - 1) && !VirtualFreeEx(GetCurrentProcess(), addr, size, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER)) ||
+				!MapViewOfFile3FromApp(s_fh, GetCurrentProcess(), addr, 0, size, MEM_REPLACE_PLACEHOLDER, PAGE_READWRITE, nullptr, 0))
+			{
+				Console.Error("Failed to map repeat %zu", i);
+				okay = false;
+
+				for (size_t j = 0; j < i; j++)
+					UnmapViewOfFile2(GetCurrentProcess(), addr, MEM_PRESERVE_PLACEHOLDER);
+			}
+		}
+
+		if (okay)
+			return base;
+
+		VirtualFreeEx(GetCurrentProcess(), base, 0, MEM_RELEASE);
+	}
+
+	Console.Error("Failed to reserve VA space. WIN API ERROR:%u", GetLastError());
+	CloseHandle(s_fh);
+	s_fh = NULL;
+	return vmalloc(size * repeat, false);
+}
+
+void fifo_free(void* ptr, size_t size, size_t repeat)
+{
+	ASSERT(s_fh != NULL);
+
+	if (s_fh == NULL)
+	{
+		if (ptr != NULL)
+			vmfree(ptr, size);
+		return;
+	}
+
+	for (size_t i = 0; i < repeat; i++)
+	{
+		u8* addr = (u8*)ptr + i * size;
+		UnmapViewOfFile2(GetCurrentProcess(), addr, MEM_PRESERVE_PLACEHOLDER);
+	}
+
+	VirtualFreeEx(GetCurrentProcess(), ptr, 0, MEM_RELEASE);
+	s_fh = NULL;
+}
+
+#endif
 
 #else
 

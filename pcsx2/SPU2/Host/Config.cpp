@@ -114,7 +114,12 @@ void ReadSettings()
 	if (mods[OutputModule] == nullptr)
 	{
 		Console.Warning("* SPU2: Unknown output module '%s' specified in configuration file.", modname.c_str());
+#ifndef _UWP
 		Console.Warning("* SPU2: Defaulting to Cubeb (%s).", CubebOut->GetIdent());
 		OutputModule = FindOutputModuleById(CubebOut->GetIdent());
+#else
+		Console.Warning("* SPU2: Defaulting to XAudio2 (%s).", XAudio2Out->GetIdent());
+		OutputModule = FindOutputModuleById(XAudio2Out->GetIdent());
+#endif
 	}
 }

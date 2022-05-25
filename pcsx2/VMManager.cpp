@@ -1690,7 +1690,7 @@ DEFINE_HOTKEY("OpenPauseMenu", "General", "Open Pause Menu", [](bool pressed) {
 })
 END_HOTKEY_LIST()
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_UWP)
 
 #include "common/RedtapeWindows.h"
 
