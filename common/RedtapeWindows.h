@@ -25,7 +25,9 @@
 #endif
 
 // Win8.1 is our minimum at the moment.
+#ifndef _UWP
 #define _WIN32_WINNT 0x0603 // Windows 8.1
+#endif
 
 #include <windows.h>
 #include <VersionHelpers.h>

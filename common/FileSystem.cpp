@@ -665,7 +665,7 @@ static std::FILE* OpenCFileUWP(const wchar_t* wfilename, const wchar_t* mode)
 		}
 		else
 		{
-			Log_ErrorPrintf("Unknown mode flags: '%s'", StringUtil::WideStringToUTF8String(mode).c_str());
+			Console.Error("Unknown mode flags: '%s'", StringUtil::WideStringToUTF8String(mode).c_str());
 			return nullptr;
 		}
 	}
@@ -676,7 +676,7 @@ static std::FILE* OpenCFileUWP(const wchar_t* wfilename, const wchar_t* mode)
 
 	if (flags & _O_APPEND && !SetFilePointerEx(hFile, LARGE_INTEGER{}, nullptr, FILE_END))
 	{
-		Log_ErrorPrintf("SetFilePointerEx() failed: %08X", GetLastError());
+		Console.Error("SetFilePointerEx() failed: %08X", GetLastError());
 		CloseHandle(hFile);
 		return nullptr;
 	}
@@ -1229,7 +1229,7 @@ bool FileSystem::StatFile(const char* path, FILESYSTEM_STAT_DATA* sd)
 	return true;
 #else
 	WIN32_FILE_ATTRIBUTE_DATA fad;
-	if (!GetFileAttributesExFromAppW(wpath, GetFileExInfoStandard, &fad))
+	if (!GetFileAttributesExFromAppW(wpath.c_str(), GetFileExInfoStandard, &fad))
 		return false;
 
 	sd->Attributes = TranslateWin32Attributes(fad.dwFileAttributes);
@@ -1466,14 +1466,14 @@ bool FileSystem::RenamePath(const char* old_path, const char* new_path)
 	{
 		if (!DeleteFileFromAppW(new_wpath.c_str()))
 		{
-			Log_ErrorPrintf("DeleteFileFromAppW('%s') failed: %08X", new_wpath.c_str(), GetLastError());
+			Console.Error("DeleteFileFromAppW('%s') failed: %08X", new_wpath.c_str(), GetLastError());
 			return false;
 		}
 	}
 
 	if (!MoveFileFromAppW(old_wpath.c_str(), new_wpath.c_str()))
 	{
-		Log_ErrorPrintf("MoveFileFromAppW('%s', '%s') failed: %08X", old_path, new_path, GetLastError());
+		Console.Error("MoveFileFromAppW('%s', '%s') failed: %08X", old_path, new_path, GetLastError());
 		return false;
 	}
 #endif
@@ -1553,6 +1553,7 @@ bool FileSystem::SetPathCompression(const char* path, bool enable)
 	const bool isFile = !(attrs & FILE_ATTRIBUTE_DIRECTORY);
 	const DWORD flags = isFile ? FILE_ATTRIBUTE_NORMAL : (FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_DIRECTORY);
 
+#ifndef _UWP
 	const HANDLE handle = CreateFileW(wpath.c_str(),
 		FILE_GENERIC_WRITE | FILE_GENERIC_READ,
 		FILE_SHARE_READ | FILE_SHARE_DELETE,
@@ -1560,6 +1561,16 @@ bool FileSystem::SetPathCompression(const char* path, bool enable)
 		OPEN_EXISTING,
 		flags,
 		nullptr);
+#else
+	const HANDLE handle = CreateFileFromAppW(wpath.c_str(),
+		FILE_GENERIC_WRITE | FILE_GENERIC_READ,
+		FILE_SHARE_READ | FILE_SHARE_DELETE,
+		nullptr,
+		OPEN_EXISTING,
+		flags,
+		nullptr);
+#endif
+
 	if (handle == INVALID_HANDLE_VALUE)
 		return false;
 

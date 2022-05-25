@@ -55,11 +55,10 @@ long __stdcall SysPageFaultExceptionFilter(EXCEPTION_POINTERS* eps)
 
 void _platform_InstallSignalHandler()
 {
-#ifdef _WIN64 // We don't handle SEH properly on Win64 so use a vectored exception handler instead
+#ifndef _UWP
 	AddVectoredExceptionHandler(true, SysPageFaultExceptionFilter);
 #endif
 }
-
 
 static DWORD ConvertToWinApi(const PageProtectionMode& mode)
 {
@@ -83,12 +82,30 @@ static DWORD ConvertToWinApi(const PageProtectionMode& mode)
 
 void* HostSys::MmapReservePtr(void* base, size_t size)
 {
+#ifndef _UWP
 	return VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
+#else
+	return VirtualAllocFromApp(base, size, MEM_RESERVE, PAGE_NOACCESS);
+#endif
 }
 
 bool HostSys::MmapCommitPtr(void* base, size_t size, const PageProtectionMode& mode)
 {
+#ifndef _UWP
 	void* result = VirtualAlloc(base, size, MEM_COMMIT, ConvertToWinApi(mode));
+#else
+	// UWP requires allocating as RW and then reprotecting to RWX (can't allocate RWX directly).
+	void* result = VirtualAllocFromApp(base, size, MEM_COMMIT, ConvertToWinApi(PageProtectionMode(mode).Execute(false)));
+	if (result && mode.CanExecute())
+	{
+		ULONG old_protection;
+		if (!VirtualProtectFromApp(base, size, PAGE_EXECUTE_READWRITE, &old_protection))
+		{
+			VirtualFree(base, size, MEM_RELEASE);
+			result = nullptr;
+		}
+	}
+#endif
 	if (result)
 		return true;
 
