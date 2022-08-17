@@ -342,11 +342,11 @@ void FileMemoryCard::Open()
 			}
 
 			// store the original filename
-			m_file[slot] = FileSystem::OpenCFile(newname.c_str(), "r+b");
+			m_file[slot] = FileSystem::OpenSharedCFile(newname.c_str(), "r+b", FileSystem::FileShareMode::DenyWrite);
 		}
 		else
 		{
-			m_file[slot] = FileSystem::OpenCFile(fname.c_str(), "r+b");
+			m_file[slot] = FileSystem::OpenSharedCFile(fname.c_str(), "r+b", FileSystem::FileShareMode::DenyWrite);
 		}
 
 		if (!m_file[slot])
@@ -530,8 +530,8 @@ s32 FileMemoryCard::Save(uint slot, const u8* src, u32 adr, int size)
 		if (elapsed > std::chrono::seconds(5))
 		{
 			const std::string_view filename(Path::GetFileName(m_filenames[slot]));
-			Host::AddKeyedFormattedOSDMessage(StringUtil::StdStringFromFormat("MemoryCardSave%u", slot), 10.0f,
-				"Memory Card %.*s written.", static_cast<int>(filename.size()), static_cast<const char*>(filename.data()));
+			Host::AddKeyedFormattedOSDMessage(StringUtil::StdStringFromFormat("MemoryCardSave%u", slot), 3.0f,
+				"Saving %.*s.", static_cast<int>(filename.size()), static_cast<const char*>(filename.data()));
 			last = std::chrono::system_clock::now();
 		}
 		return 1;
@@ -619,7 +619,11 @@ void FileMcd_EmuOpen()
 	// detect inserted memory card types
 	for (uint slot = 0; slot < 8; ++slot)
 	{
-		if (EmuConfig.Mcd[slot].Enabled)
+		if (EmuConfig.Mcd[slot].Filename.empty())
+		{
+			EmuConfig.Mcd[slot].Type = MemoryCardType::Empty;
+		}
+		else if (EmuConfig.Mcd[slot].Enabled)
 		{
 			MemoryCardType type = MemoryCardType::File; // default to file if we can't find anything at the path so it gets auto-generated
 
@@ -805,7 +809,7 @@ static bool IsMemoryCardFolder(const std::string& path)
 
 static bool IsMemoryCardFormatted(const std::string& path)
 {
-	auto fp = FileSystem::OpenManagedCFile(path.c_str(), "rb");
+	auto fp = FileSystem::OpenManagedSharedCFile(path.c_str(), "rb", FileSystem::FileShareMode::DenyNone);
 	if (!fp)
 		return false;
 

@@ -17,8 +17,9 @@
     <ApplicationType>Windows Store</ApplicationType>
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
     <WindowsTargetPlatformVersion Condition=" '$(WindowsTargetPlatformVersion)' == '' ">10.0.19041.0</WindowsTargetPlatformVersion>
-    <WindowsTargetPlatformMinVersion>10.0.17134.0</WindowsTargetPlatformMinVersion>
+    <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
     <CppWinRTGenerateWindowsMetadata>false</CppWinRTGenerateWindowsMetadata>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -28,13 +29,13 @@
     <UseDebugLibraries Condition="$(Configuration.Contains(Debug))">true</UseDebugLibraries>
     <UseDebugLibraries Condition="!$(Configuration.Contains(Debug))">false</UseDebugLibraries>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
-    <PackageCertificateKeyFile>pcsx2-uwp.pfx</PackageCertificateKeyFile>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+    <PackageCertificateKeyFile>pcsx2-uwp_TemporaryKey.pfx</PackageCertificateKeyFile>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
-    <GenerateTestArtifacts>True</GenerateTestArtifacts>
-    <AppxBundle>Always</AppxBundle>
+    <GenerateTestArtifacts>False</GenerateTestArtifacts>
+    <AppxBundle>Never</AppxBundle>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
@@ -55,6 +56,8 @@
   <PropertyGroup>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <TargetName>$(EXEString)</TargetName>
+    <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
+    <AppxPackageDir>D:\TheRhysWyrill\Downloads\Emu Stuff\AppPackages\</AppxPackageDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -186,6 +189,7 @@
     <ClInclude Include="..\pcsx2-nogui\NoGUIHost.h" />
     <ClInclude Include="..\pcsx2-nogui\NoGUIPlatform.h" />
     <ClInclude Include="PrecompiledHeader.h" />
+    <ClInclude Include="svnrev.h" />
     <ClInclude Include="UWPKeyNames.h" />
     <ClInclude Include="UWPNoGUIPlatform.h" />
   </ItemGroup>
@@ -194,7 +198,7 @@
       <SubType>Designer</SubType>
     </AppxManifest>
   </ItemGroup>
-  <!--  <ItemGroup>
+  <ItemGroup>
     <CommonDataFiles Include="$(SolutionDir)bin\resources\**\*.*">
       <InProject>false</InProject>
     </CommonDataFiles>
@@ -202,8 +206,49 @@
   <Target Name="CopyCommonDataFiles" BeforeTargets="PrepareForBuild" Inputs="@(CommonDataFiles)" Outputs="@(CommonDataFiles -> '$(ProjectDir)%(RecursiveDir)%(Filename)%(Extension)')">
     <Message Text="Copying common data files" Importance="High" />
     <Copy SourceFiles="@(CommonDataFiles)" DestinationFolder="$(ProjectDir)\resources\%(RecursiveDir)" SkipUnchangedFiles="true" />
-  </Target>-->
+  </Target>
   <ItemGroup>
+    <Image Include="resources\cover-placeholder.png" />
+    <Image Include="resources\fullscreenui\address-book-new.png" />
+    <Image Include="resources\fullscreenui\applications-system.png" />
+    <Image Include="resources\fullscreenui\media-cdrom.png" />
+    <Image Include="resources\fullscreenui\placeholder.png" />
+    <Image Include="resources\icons\AppIconLarge.png" />
+    <Image Include="resources\icons\flags\NTSC-B.png" />
+    <Image Include="resources\icons\flags\NTSC-C.png" />
+    <Image Include="resources\icons\flags\NTSC-HK.png" />
+    <Image Include="resources\icons\flags\NTSC-J.png" />
+    <Image Include="resources\icons\flags\NTSC-K.png" />
+    <Image Include="resources\icons\flags\NTSC-T.png" />
+    <Image Include="resources\icons\flags\NTSC-U.png" />
+    <Image Include="resources\icons\flags\Other.png" />
+    <Image Include="resources\icons\flags\PAL-A.png" />
+    <Image Include="resources\icons\flags\PAL-AF.png" />
+    <Image Include="resources\icons\flags\PAL-AU.png" />
+    <Image Include="resources\icons\flags\PAL-BE.png" />
+    <Image Include="resources\icons\flags\PAL-E.png" />
+    <Image Include="resources\icons\flags\PAL-F.png" />
+    <Image Include="resources\icons\flags\PAL-FI.png" />
+    <Image Include="resources\icons\flags\PAL-G.png" />
+    <Image Include="resources\icons\flags\PAL-GR.png" />
+    <Image Include="resources\icons\flags\PAL-I.png" />
+    <Image Include="resources\icons\flags\PAL-IN.png" />
+    <Image Include="resources\icons\flags\PAL-M.png" />
+    <Image Include="resources\icons\flags\PAL-NL.png" />
+    <Image Include="resources\icons\flags\PAL-NO.png" />
+    <Image Include="resources\icons\flags\PAL-P.png" />
+    <Image Include="resources\icons\flags\PAL-R.png" />
+    <Image Include="resources\icons\flags\PAL-S.png" />
+    <Image Include="resources\icons\flags\PAL-SC.png" />
+    <Image Include="resources\icons\flags\PAL-SW.png" />
+    <Image Include="resources\icons\flags\PAL-SWI.png" />
+    <Image Include="resources\icons\flags\PAL-UK.png" />
+    <Image Include="resources\icons\star-0.png" />
+    <Image Include="resources\icons\star-1.png" />
+    <Image Include="resources\icons\star-2.png" />
+    <Image Include="resources\icons\star-3.png" />
+    <Image Include="resources\icons\star-4.png" />
+    <Image Include="resources\icons\star-5.png" />
     <Image Include="Assets\LargeTile.scale-100.png" />
     <Image Include="Assets\LargeTile.scale-125.png" />
     <Image Include="Assets\LargeTile.scale-150.png" />
@@ -257,6 +302,55 @@
     <Image Include="Assets\WideTile.scale-150.png" />
     <Image Include="Assets\WideTile.scale-200.png" />
     <Image Include="Assets\WideTile.scale-400.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\cheats_ni.zip">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="resources\cheats_ws.zip">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="resources\fonts\Roboto-Regular-copyright">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="resources\GameIndex.yaml">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="pcsx2-uwp_TemporaryKey.pfx" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="resources\game_controller_db.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="resources\fonts\fa-solid-900.ttf" />
+    <Font Include="resources\fonts\Roboto-Regular.ttf" />
+    <Font Include="resources\fonts\RobotoMono-Medium.ttf" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\shaders\common\fxaa.fx">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="resources\shaders\dx11\convert.fx">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="resources\shaders\dx11\interlace.fx">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="resources\shaders\dx11\merge.fx">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="resources\shaders\dx11\present.fx">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="resources\shaders\dx11\shadeboost.fx">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+    <None Include="resources\shaders\dx11\tfx.fx">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Package.StoreAssociation.xml" />
   </ItemGroup>
   <Import Project="$(SolutionDir)common\vsprops\Targets.props" />
   <ImportGroup Label="ExtensionTargets" />

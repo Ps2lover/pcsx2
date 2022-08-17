@@ -27,16 +27,6 @@ target_link_libraries(pcsx2-nogui PRIVATE
 	PCSX2
 )
 
-# Platforms
-target_sources(pcsx2-nogui PRIVATE
-	SDLKeyNames.h
-	SDLNoGUIPlatform.cpp
-	SDLNoGUIPlatform.h
-)
-target_link_libraries(pcsx2-nogui PRIVATE
-	SDL2::SDL2-static
-)
-
 if (WAYLAND_API)
 	# Generate the xdg-shell and xdg-decoration protocols at build-time.
 	# Because these are C, not C++, we have to put them in their own library, otherwise

@@ -106,8 +106,8 @@ void UWPNoGUIPlatform::SetWindow(const winrt::Windows::UI::Core::CoreWindow& win
 
 void UWPNoGUIPlatform::OnUnhandledErrorDetected(const IInspectable&, const winrt::Windows::ApplicationModel::Core::UnhandledErrorDetectedEventArgs& args)
 {
-	Console.WriteLn("foo");
-	ReportError("Foo", "bar");
+	/*Console.WriteLn("foo");
+	ReportError("Foo", "bar");*/
 }
 
 void UWPNoGUIPlatform::OnSuspending(const IInspectable&, const winrt::Windows::ApplicationModel::SuspendingEventArgs& args)
@@ -272,7 +272,7 @@ void UWPNoGUIPlatform::SetDefaultConfig(SettingsInterface& si)
 		si.SetStringValue("Pad1", "LargeMotor", "XInput-0/LargeMotor");
 
 		// LB+RB => Open Pause Menu.
-		si.SetStringValue("Hotkeys", "OpenPauseMenu", "XInput-0/LeftShoulder & XInput-0/RightShoulder");
+		si.SetStringValue("Hotkeys", "OpenPauseMenu", "XInput-0/Back & XInput-0/Start");
 	}
 }
 

@@ -5,6 +5,8 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{DE9653B6-17DD-356A-9EE0-28A731772587}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -74,7 +76,8 @@
     <ClCompile Include="rapidyaml\src\c4\yml\tree.cpp" />
     <ClInclude Include="rapidyaml\src\c4\yml\writer.hpp" />
     <ClInclude Include="rapidyaml\src\c4\yml\yml.hpp" />
-    <Natvis Include="rapidyaml\src\ryml.natvis"></Natvis>
+    <Natvis Include="rapidyaml\src\ryml.natvis">
+    </Natvis>
     <ClInclude Include="rapidyaml\ext\c4core\src\c4\allocator.hpp" />
     <ClInclude Include="rapidyaml\ext\c4core\src\c4\base64.hpp" />
     <ClCompile Include="rapidyaml\ext\c4core\src\c4\base64.cpp" />
@@ -126,7 +129,8 @@
     <ClInclude Include="rapidyaml\ext\c4core\src\c4\windows.hpp" />
     <ClInclude Include="rapidyaml\ext\c4core\src\c4\windows_pop.hpp" />
     <ClInclude Include="rapidyaml\ext\c4core\src\c4\windows_push.hpp" />
-    <Natvis Include="rapidyaml\ext\c4core\src\c4\c4core.natvis"></Natvis>
+    <Natvis Include="rapidyaml\ext\c4core\src\c4\c4core.natvis">
+    </Natvis>
     <ClInclude Include="rapidyaml\ext\c4core\src\c4\ext\debugbreak\debugbreak.h" />
     <ClInclude Include="rapidyaml\ext\c4core\src\c4\ext\rng\rng.hpp" />
     <ClInclude Include="rapidyaml\ext\c4core\src\c4\ext\sg14\inplace_function.h" />

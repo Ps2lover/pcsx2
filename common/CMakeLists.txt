@@ -20,6 +20,7 @@ target_sources(common PRIVATE
 	FastJmp.cpp
 	FileSystem.cpp
 	Image.cpp
+	HTTPDownloader.cpp
 	Misc.cpp
 	MD5Digest.cpp
 	PrecompiledHeader.cpp
@@ -30,6 +31,7 @@ target_sources(common PRIVATE
 	StringUtil.cpp
 	TextureDecompress.cpp
 	Timer.cpp
+	ThreadPool.cpp
 	WindowInfo.cpp
 	emitter/bmi.cpp
 	emitter/cpudetect.cpp
@@ -71,6 +73,7 @@ target_sources(common PRIVATE
 	General.h
 	HashCombine.h
 	Image.h
+	HTTPDownloader.h
 	LRUCache.h
 	MemcpyFast.h
 	MemsetFast.inl
@@ -89,6 +92,7 @@ target_sources(common PRIVATE
 	Timer.h
 	TextureDecompress.h
 	Threading.h
+	ThreadPool.h
 	TraceLog.h
 	WindowInfo.h
 	emitter/cpudetect_internal.h
@@ -174,6 +178,8 @@ if(WIN32)
 		CrashHandler.cpp
 		CrashHandler.h
 		FastJmp.asm
+		HTTPDownloaderWinHTTP.cpp
+		HTTPDownloaderWinHTTP.h
 		StackWalker.cpp
 		StackWalker.h
 		D3D11/ShaderCache.cpp
@@ -197,6 +203,15 @@ if(WIN32)
 	)
 endif()
 
+if(APPLE)
+	target_sources(common PRIVATE
+		CocoaTools.mm
+		CocoaTools.h
+	)
+	target_compile_options(common PRIVATE -fobjc-arc)
+	target_link_options(common PRIVATE -fobjc-link-runtime)
+endif()
+
 if(USE_OPENGL)
 	if(WIN32)
 		target_sources(common PRIVATE
@@ -209,9 +224,6 @@ if(USE_OPENGL)
 			GL/ContextAGL.mm
 			GL/ContextAGL.h
 		)
-		set_source_files_properties(GL/ContextAGL.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
-		target_compile_options(common PRIVATE -fobjc-arc)
-		target_link_options(common PRIVATE -fobjc-link-runtime)
 	else()
 		if(X11_API OR WAYLAND_API)
 			target_sources(common PRIVATE
@@ -261,15 +273,26 @@ if (USE_GCC AND CMAKE_INTERPROCEDURAL_OPTIMIZATION)
 	set_source_files_properties(FastJmp.cpp PROPERTIES COMPILE_FLAGS -fno-lto)
 endif()
 
+if(NOT WIN32 AND QT_BUILD AND USE_ACHIEVEMENTS)
+	# libcurl-based HTTPDownloader
+	target_sources(common PRIVATE
+		HTTPDownloaderCurl.cpp
+		HTTPDownloaderCurl.h
+	)
+	target_link_libraries(common PRIVATE CURL::libcurl)
+endif()
+
 target_link_libraries(common PRIVATE
 	${LIBC_LIBRARIES}
 	PNG::PNG
+	jpgd
 )
 
 target_link_libraries(common PUBLIC
 	fmt::fmt
 )
 
+fixup_file_properties(common)
 target_compile_features(common PUBLIC cxx_std_17)
 target_include_directories(common PUBLIC ../3rdparty/include ../)
 target_compile_definitions(common PUBLIC "${PCSX2_DEFS}")

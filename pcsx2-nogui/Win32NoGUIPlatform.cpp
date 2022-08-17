@@ -30,7 +30,7 @@ static constexpr DWORD WINDOWED_STYLE = WS_OVERLAPPEDWINDOW | WS_CAPTION | WS_MI
 static constexpr DWORD WINDOWED_EXSTYLE = WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE;
 static constexpr DWORD FULLSCREEN_STYLE = WS_POPUP | WS_MINIMIZEBOX;
 
-static float WrapGetWindowDpi(HWND hwnd)
+static float GetWindowScale(HWND hwnd)
 {
 	static UINT(WINAPI * get_dpi_for_window)(HWND hwnd);
 	if (!get_dpi_for_window)
@@ -106,16 +106,19 @@ bool Win32NoGUIPlatform::CreatePlatformWindow(std::string title)
 		window_height = DEFAULT_WINDOW_HEIGHT;
 	}
 
-	m_hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WINDOW_CLASS_NAME, StringUtil::UTF8StringToWideString(title).c_str(), WINDOWED_STYLE,
+	HWND hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WINDOW_CLASS_NAME, StringUtil::UTF8StringToWideString(title).c_str(), WINDOWED_STYLE,
 		window_x, window_y, window_width, window_height, nullptr, nullptr, GetModuleHandleW(nullptr), this);
-	if (!m_hwnd)
+	if (!hwnd)
 	{
 		MessageBoxW(nullptr, L"CreateWindowEx failed.", L"Error", MB_ICONERROR | MB_OK);
 		return false;
 	}
 
-	ShowWindow(m_hwnd, SW_SHOW);
-	UpdateWindow(m_hwnd);
+	// deliberately not stored to m_hwnd yet, because otherwise the msg handlers will run
+	ShowWindow(hwnd, SW_SHOW);
+	UpdateWindow(hwnd);
+	m_hwnd = hwnd;
+	m_window_scale = GetWindowScale(m_hwnd);
 	m_last_mouse_buttons = 0;
 
 	if (m_fullscreen.load(std::memory_order_acquire))
@@ -150,7 +153,7 @@ std::optional<WindowInfo> Win32NoGUIPlatform::GetPlatformWindowInfo()
 	WindowInfo wi;
 	wi.surface_width = static_cast<u32>(rc.right - rc.left);
 	wi.surface_height = static_cast<u32>(rc.bottom - rc.top);
-	wi.surface_scale = WrapGetWindowDpi(m_hwnd);
+	wi.surface_scale = m_window_scale;
 	wi.type = WindowInfo::Type::Win32;
 	wi.window_handle = m_hwnd;
 	return wi;
@@ -263,6 +266,9 @@ bool Win32NoGUIPlatform::RequestRenderWindowSize(s32 new_window_width, s32 new_w
 LRESULT CALLBACK Win32NoGUIPlatform::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	Win32NoGUIPlatform* platform = static_cast<Win32NoGUIPlatform*>(g_nogui_window.get());
+	if (hwnd != platform->m_hwnd && msg != WM_FUNC)
+		return DefWindowProcW(hwnd, msg, wParam, lParam);
+
 	switch (msg)
 	{
 		case WM_SIZE:
@@ -283,8 +289,8 @@ LRESULT CALLBACK Win32NoGUIPlatform::WndProc(HWND hwnd, UINT msg, WPARAM wParam,
 
 		case WM_MOUSEMOVE:
 		{
-			const s32 x = static_cast<s16>(LOWORD(lParam));
-			const s32 y = static_cast<s16>(HIWORD(lParam));
+			const float x = static_cast<float>(static_cast<s16>(LOWORD(lParam)));
+			const float y = static_cast<float>(static_cast<s16>(HIWORD(lParam)));
 			NoGUIHost::ProcessPlatformMouseMoveEvent(x, y);
 		}
 		break;
@@ -306,7 +312,7 @@ LRESULT CALLBACK Win32NoGUIPlatform::WndProc(HWND hwnd, UINT msg, WPARAM wParam,
 			for (u32 i = 0; i < std::size(masks); i++)
 			{
 				if (changed & masks[i])
-					NoGUIHost::ProcessPlatformMouseButtonEvent(i + 1, (buttons & masks[i]) != 0);
+					NoGUIHost::ProcessPlatformMouseButtonEvent(i, (buttons & masks[i]) != 0);
 			}
 		}
 		break;

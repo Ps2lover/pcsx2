@@ -692,7 +692,7 @@
     <ClCompile Include="CDVD\CDVD.cpp">
       <Filter>System\Ps2\Iop\CDVD</Filter>
     </ClCompile>
-    <ClCompile Include="CDVD\CDVDaccess.cpp">
+    <ClCompile Include="CDVD\CDVDcommon.cpp">
       <Filter>System\Ps2\Iop\CDVD</Filter>
     </ClCompile>
     <ClCompile Include="CDVD\CDVDisoReader.cpp">
@@ -1171,6 +1171,9 @@
     </ClCompile>
     <ClCompile Include="SPU2\Wavedump_wav.cpp">
       <Filter>System\Ps2\SPU2</Filter>
+    </ClCompile>
+    <ClCompile Include="DEV9\AdapterUtils.cpp">
+      <Filter>System\Ps2\DEV9</Filter>
     </ClCompile>
     <ClCompile Include="DEV9\ATA\Commands\ATA_Command.cpp">
       <Filter>System\Ps2\DEV9\ATA\Commands</Filter>
@@ -1721,6 +1724,9 @@
     <ClCompile Include="Frontend\D3D11HostDisplay.cpp">
       <Filter>Host</Filter>
     </ClCompile>
+	    <ClCompile Include="Frontend\Achievements.cpp">
+      <Filter>Host</Filter>
+    </ClCompile>
     <ClCompile Include="gui\AppHost.cpp">
       <Filter>AppHost</Filter>
     </ClCompile>
@@ -1999,7 +2005,7 @@
     <ClInclude Include="CDVD\CDVD_internal.h">
       <Filter>System\Ps2\Iop\CDVD</Filter>
     </ClInclude>
-    <ClInclude Include="CDVD\CDVDaccess.h">
+    <ClInclude Include="CDVD\CDVDcommon.h">
       <Filter>System\Ps2\Iop\CDVD</Filter>
     </ClInclude>
     <ClInclude Include="CDVD\CDVDisoReader.h">
@@ -2337,6 +2343,9 @@
     </ClInclude>
     <ClInclude Include="Recording\Utilities\InputRecordingLogger.h">
       <Filter>Recording\Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="DEV9\AdapterUtils.h">
+      <Filter>System\Ps2\DEV9</Filter>
     </ClInclude>
     <ClInclude Include="DEV9\ATA\ATA.h">
       <Filter>System\Ps2\DEV9\ATA</Filter>
@@ -2930,6 +2939,9 @@
       <Filter>Host</Filter>
     </ClInclude>
     <ClInclude Include="Frontend\D3D11HostDisplay.h">
+      <Filter>Host</Filter>
+    </ClInclude>
+	    <ClInclude Include="Frontend\Achievements.h">
       <Filter>Host</Filter>
     </ClInclude>
     <ClInclude Include="gui\AppHost.h">

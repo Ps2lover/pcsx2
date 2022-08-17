@@ -246,6 +246,17 @@ __fi void cpuSetNextEventDelta( s32 delta )
 	cpuSetNextEvent( cpuRegs.cycle, delta );
 }
 
+__fi int cpuGetCycles(int interrupt)
+{
+	if (interrupt == VU_MTVU_BUSY && (!THREAD_VU1 || INSTANT_VU1))
+		return 1;
+	else
+	{
+		const int cycles = (cpuRegs.sCycle[interrupt] + cpuRegs.eCycle[interrupt]) - cpuRegs.cycle;
+		return std::max(1, cycles);
+	}
+}
+
 // tests the cpu cycle against the given start and delta values.
 // Returns true if the delta time has passed.
 __fi int cpuTestCycle( u32 startCycle, s32 delta )
@@ -292,24 +303,24 @@ static __fi void _cpuTestInterrupts()
 	}
 	/* These are 'pcsx2 interrupts', they handle asynchronous stuff
 	   that depends on the cycle timings */
-
-	TESTINT(DMAC_VIF1,		vif1Interrupt);	
+	TESTINT(VU_MTVU_BUSY, MTVUInterrupt);
+	TESTINT(DMAC_VIF1,		vif1Interrupt);
 	TESTINT(DMAC_GIF,		gifInterrupt);
 	TESTINT(DMAC_SIF0,		EEsif0Interrupt);
 	TESTINT(DMAC_SIF1,		EEsif1Interrupt);
-	
 	// Profile-guided Optimization (sorta)
 	// The following ints are rarely called.  Encasing them in a conditional
 	// as follows helps speed up most games.
 
 	if (cpuRegs.interrupt & ((1 << DMAC_VIF0) | (1 << DMAC_FROM_IPU) | (1 << DMAC_TO_IPU)
 		| (1 << DMAC_FROM_SPR) | (1 << DMAC_TO_SPR) | (1 << DMAC_MFIFO_VIF) | (1 << DMAC_MFIFO_GIF)
-		| (1 << VIF_VU0_FINISH) | (1 << VIF_VU1_FINISH)))
+		| (1 << VIF_VU0_FINISH) | (1 << VIF_VU1_FINISH) | (1 << IPU_PROCESS)))
 	{
 		TESTINT(DMAC_VIF0,		vif0Interrupt);
 
 		TESTINT(DMAC_FROM_IPU,	ipu0Interrupt);
 		TESTINT(DMAC_TO_IPU,	ipu1Interrupt);
+		TESTINT(IPU_PROCESS,	ipuCMDProcess);
 
 		TESTINT(DMAC_FROM_SPR,	SPRFROMinterrupt);
 		TESTINT(DMAC_TO_SPR,	SPRTOinterrupt);
@@ -365,14 +376,14 @@ static bool cpuIntsEnabled(int Interrupt)
 
 // if cpuRegs.cycle is greater than this cycle, should check cpuEventTest for updates
 u32 g_nextEventCycle = 0;
-
+u32 g_lastEventCycle = 0;
 // Shared portion of the branch test, called from both the Interpreter
 // and the recompiler.  (moved here to help alleviate redundant code)
 __fi void _cpuEventTest_Shared()
 {
 	eeEventTestIsActive = true;
 	g_nextEventCycle = cpuRegs.cycle + eeWaitCycles;
-
+	g_lastEventCycle = cpuRegs.cycle;
 	// ---- INTC / DMAC (CPU-level Exceptions) -----------------
 	// Done first because exceptions raised during event tests need to be postponed a few
 	// cycles (fixes Grandia II [PAL], which does a spin loop on a vsync and expects to
@@ -387,7 +398,7 @@ __fi void _cpuEventTest_Shared()
 	// escape/suspend hooks, and it's really a good idea to suspend/resume emulation before
 	// doing any actual meaningful branchtest logic.
 
-	if( cpuTestCycle( nextsCounter, nextCounter ) )
+	if ( cpuTestCycle( nextsCounter, nextCounter ) )
 	{
 		rcntUpdate();
 		_cpuTestPERF();
@@ -521,7 +532,7 @@ __fi void CPU_INT( EE_EventType n, s32 ecycle)
 	// EE events happen 8 cycles in the future instead of whatever was requested.
 	// This can be used on games with PATH3 masking issues for example, or when
 	// some FMV look bad.
-	if(CHECK_EETIMINGHACK) ecycle = 8;
+	if(CHECK_EETIMINGHACK && n < VIF_VU0_FINISH) ecycle = 8;
 
 	cpuRegs.interrupt|= 1 << n;
 	cpuRegs.sCycle[n] = cpuRegs.cycle;

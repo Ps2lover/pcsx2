@@ -5,6 +5,8 @@
   <Import Project="$(SolutionDir)common\vsprops\WinSDK.props" />
   <PropertyGroup Label="Globals">
     <ProjectGuid>{6C7986C4-3E4D-4DCC-B3C6-6BB12B238995}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
   </PropertyGroup>
   <PropertyGroup Label="Globals" Condition="$(Configuration.Contains(UWP))">
     <CppWinRTOptimized Condition="!$(Configuration.Contains(Release))">true</CppWinRTOptimized>
@@ -151,6 +153,7 @@
     <ClCompile Include="DebugTools\MipsAssemblerTables.cpp" />
     <ClCompile Include="DebugTools\MipsStackWalk.cpp" />
     <ClCompile Include="DebugTools\SymbolMap.cpp" />
+    <ClCompile Include="DEV9\AdapterUtils.cpp" />
     <ClCompile Include="DEV9\ATA\Commands\ATA_Command.cpp" />
     <ClCompile Include="DEV9\ATA\Commands\ATA_CmdDMA.cpp" />
     <ClCompile Include="DEV9\ATA\Commands\ATA_CmdExecuteDeviceDiag.cpp" />
@@ -211,6 +214,7 @@
     <ClCompile Include="Frontend\InputManager.cpp" />
     <ClCompile Include="Frontend\InputSource.cpp" />
     <ClCompile Include="Frontend\LayeredSettingsInterface.cpp" />
+    <ClCompile Include="Frontend\LogSink.cpp" />
     <ClCompile Include="Frontend\OpenGLHostDisplay.cpp">
       <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
     </ClCompile>
@@ -218,6 +222,9 @@
       <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Frontend\VulkanHostDisplay.cpp">
+      <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="Frontend\Win32RawInputSource.cpp">
       <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Frontend\XInputSource.cpp" />
@@ -440,7 +447,7 @@
     <ClCompile Include="ps2\Iop\IopHwWrite.cpp" />
     <ClCompile Include="CDVD\Ps1CD.cpp" />
     <ClCompile Include="CDVD\CDVD.cpp" />
-    <ClCompile Include="CDVD\CDVDaccess.cpp" />
+    <ClCompile Include="CDVD\CDVDcommon.cpp" />
     <ClCompile Include="CDVD\CDVDisoReader.cpp" />
     <ClCompile Include="Ipu\IPU.cpp" />
     <ClCompile Include="Ipu\IPU_Fifo.cpp" />
@@ -498,6 +505,7 @@
     <ClInclude Include="DebugTools\MipsAssemblerTables.h" />
     <ClInclude Include="DebugTools\MipsStackWalk.h" />
     <ClInclude Include="DebugTools\SymbolMap.h" />
+    <ClInclude Include="DEV9\AdapterUtils.h" />
     <ClInclude Include="DEV9\ATA\ATA.h" />
     <ClInclude Include="DEV9\ATA\HddCreate.h" />
     <ClInclude Include="DEV9\DEV9.h" />
@@ -553,6 +561,7 @@
     <ClInclude Include="Frontend\InputManager.h" />
     <ClInclude Include="Frontend\InputSource.h" />
     <ClInclude Include="Frontend\LayeredSettingsInterface.h" />
+    <ClInclude Include="Frontend\LogSink.h" />
     <ClInclude Include="Frontend\OpenGLHostDisplay.h">
       <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
     </ClInclude>
@@ -560,6 +569,9 @@
       <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="Frontend\VulkanHostDisplay.h">
+      <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="Frontend\Win32RawInputSource.h">
       <ExcludedFromBuild Condition="$(Configuration.Contains(UWP))">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="Frontend\XInputSource.h" />
@@ -691,6 +703,7 @@
     <ClInclude Include="PrecompiledHeader.h" />
     <ClInclude Include="sio_internal.h" />
     <ClInclude Include="ps2\pgif.h" />
+    <ClInclude Include="svnrev.h" />
     <ClInclude Include="USB\USB.h" />
     <ClInclude Include="Utilities\AsciiFile.h" />
     <ClInclude Include="Elfheader.h" />
@@ -763,7 +776,7 @@
     <ClInclude Include="CDVD\Ps1CD.h" />
     <ClInclude Include="CDVD\CDVD.h" />
     <ClInclude Include="CDVD\CDVD_internal.h" />
-    <ClInclude Include="CDVD\CDVDaccess.h" />
+    <ClInclude Include="CDVD\CDVDcommon.h" />
     <ClInclude Include="Ipu\IPU.h" />
     <ClInclude Include="Ipu\IPU_Fifo.h" />
     <ClInclude Include="Ipu\yuv2rgb.h" />

@@ -30,6 +30,8 @@
 class DisplayWidget;
 struct VMBootParameters;
 
+enum class CDVD_SourceType : uint8_t;
+
 class EmuThread : public QThread
 {
 	Q_OBJECT
@@ -43,6 +45,7 @@ public:
 
 	__fi QEventLoop* getEventLoop() const { return m_event_loop; }
 	__fi bool isFullscreen() const { return m_is_fullscreen; }
+	__fi bool isRenderingToMain() const { return m_is_rendering_to_main; }
 	__fi bool isRunningFullscreenUI() const { return m_run_fullscreen_ui; }
 
 	bool isOnEmuThread() const;
@@ -59,6 +62,7 @@ public:
 
 public Q_SLOTS:
 	void startFullscreenUI();
+	void stopFullscreenUI();
 	void startVM(std::shared_ptr<VMBootParameters> boot_params);
 	void resetVM();
 	void setVMPaused(bool paused);
@@ -72,9 +76,10 @@ public Q_SLOTS:
 	void setSurfaceless(bool surfaceless);
 	void applySettings();
 	void reloadGameSettings();
+	void updateEmuFolders();
 	void toggleSoftwareRendering();
 	void switchRenderer(GSRendererType renderer);
-	void changeDisc(const QString& path);
+	void changeDisc(CDVD_SourceType source, const QString& path);
 	void reloadPatches();
 	void reloadInputSources();
 	void reloadInputBindings();
@@ -130,8 +135,11 @@ protected:
 	void run();
 
 private:
-	static constexpr u32 BACKGROUND_CONTROLLER_POLLING_INTERVAL =
-		100; /// Interval at which the controllers are polled when the system is not active.
+	/// Interval at which the controllers are polled when the system is not active.
+	static constexpr u32 BACKGROUND_CONTROLLER_POLLING_INTERVAL = 100;
+
+	/// Poll at half the vsync rate for FSUI to reduce the chance of getting a press+release in the same frame.
+	static constexpr u32 FULLSCREEN_UI_CONTROLLER_POLLING_INTERVAL = 8;
 
 	void destroyVM();
 	void executeVM();
@@ -139,18 +147,16 @@ private:
 
 	void createBackgroundControllerPollTimer();
 	void destroyBackgroundControllerPollTimer();
+	void connectSignals();
 	void loadOurSettings();
 	void loadOurInitialSettings();
 
 private Q_SLOTS:
 	void stopInThread();
 	void doBackgroundControllerPoll();
-	void onDisplayWindowMouseMoveEvent(int x, int y);
-	void onDisplayWindowMouseButtonEvent(int button, bool pressed);
-	void onDisplayWindowMouseWheelEvent(const QPoint& delta_angle);
 	void onDisplayWindowResized(int width, int height, float scale);
-	void onDisplayWindowFocused();
-	void onDisplayWindowKeyEvent(int key, bool pressed);
+	void onApplicationStateChanged(Qt::ApplicationState state);
+	void redrawDisplayWindow();
 
 private:
 	QThread* m_ui_thread;
@@ -166,6 +172,9 @@ private:
 	bool m_is_fullscreen = false;
 	bool m_is_surfaceless = false;
 	bool m_save_state_on_shutdown = false;
+	bool m_pause_on_focus_loss = false;
+
+	bool m_was_paused_by_focus_loss = false;
 
 	float m_last_speed = 0.0f;
 	float m_last_game_fps = 0.0f;

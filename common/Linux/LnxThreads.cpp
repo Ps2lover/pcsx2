@@ -18,6 +18,8 @@
 #define _GNU_SOURCE
 #endif
 
+#include <memory>
+
 #include <pthread.h>
 #include <unistd.h>
 #if defined(__linux__)

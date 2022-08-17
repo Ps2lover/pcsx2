@@ -50,8 +50,6 @@ public:
 
 	virtual bool RequestRenderWindowSize(s32 new_window_width, s32 new_window_height) = 0;
 
-	// static std::unique_ptr<NoGUIPlatform> CreateSDLPlatform();
-
 #ifdef _WIN32
 	static std::unique_ptr<NoGUIPlatform> CreateWin32Platform();
 #endif

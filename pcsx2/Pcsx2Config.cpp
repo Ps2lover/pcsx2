@@ -23,7 +23,7 @@
 #include "Config.h"
 #include "GS.h"
 #include "HostDisplay.h"
-#include "CDVD/CDVDaccess.h"
+#include "CDVD/CDVDcommon.h"
 #include "MemoryCardFile.h"
 
 #ifndef PCSX2_CORE
@@ -285,8 +285,8 @@ const char* Pcsx2Config::GSOptions::GetRendererName(GSRendererType type)
 	switch (type)
 	{
 		case GSRendererType::Auto:  return "Auto";
-		case GSRendererType::DX11:  return "Direct3D 11";
-		case GSRendererType::DX12:  return "Direct3D 12";
+		case GSRendererType::DX11:  return "D3D11";
+		case GSRendererType::DX12:  return "D3D12";
 		case GSRendererType::Metal: return "Metal";
 		case GSRendererType::OGL:   return "OpenGL";
 		case GSRendererType::VK:    return "Vulkan";
@@ -300,8 +300,10 @@ Pcsx2Config::GSOptions::GSOptions()
 {
 	bitset = 0;
 
+	PCRTCAntiBlur = true;
 	DisableInterlaceOffset = false;
 	PCRTCOffsets = false;
+	PCRTCOverscan = false;
 	IntegerScaling = false;
 	LinearPresent = true;
 	SyncToHostRefreshRate = false;
@@ -313,22 +315,20 @@ Pcsx2Config::GSOptions::GSOptions()
 	SkipDuplicateFrames = false;
 	OsdShowMessages = true;
 	OsdShowSpeed = false;
-	OsdShowFPS = false;
+	OsdShowFPS = true;
 	OsdShowCPU = false;
 	OsdShowGPU = false;
 	OsdShowResolution = false;
 	OsdShowGSStats = false;
 	OsdShowIndicators = true;
 
-	HWDisableReadbacks = false;
+	HWDownloadMode = GSHardwareDownloadMode::Enabled;
 	AccurateDATE = true;
-	GPUPaletteConversion = false;
-	ConservativeFramebuffer = true;
+	GPUPaletteConversion = true;
 	AutoFlushSW = true;
 	PreloadFrameWithGSData = false;
 	WrapGSMem = false;
 	Mipmap = true;
-	AA1 = true;
 	PointListPalette = false;
 
 	ManualUserHacks = false;
@@ -360,11 +360,7 @@ bool Pcsx2Config::GSOptions::operator==(const GSOptions& right) const
 		OpEqu(SynchronousMTGS) &&
 		OpEqu(VsyncQueueSize) &&
 
-		OpEqu(FrameSkipEnable) &&
 		OpEqu(FrameLimitEnable) &&
-
-		OpEqu(FramesToDraw) &&
-		OpEqu(FramesToSkip) &&
 
 		OpEqu(LimitScalar) &&
 		OpEqu(FramerateNTSC) &&
@@ -387,8 +383,15 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 
 		OpEqu(Zoom) &&
 		OpEqu(StretchY) &&
+#ifndef PCSX2_CORE
 		OpEqu(OffsetX) &&
 		OpEqu(OffsetY) &&
+#else
+		OpEqu(Crop[0]) &&
+		OpEqu(Crop[1]) &&
+		OpEqu(Crop[2]) &&
+		OpEqu(Crop[3]) &&
+#endif
 		OpEqu(OsdScale) &&
 
 		OpEqu(Renderer) &&
@@ -400,6 +403,7 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(TextureFiltering) &&
 		OpEqu(TexturePreloading) &&
 		OpEqu(GSDumpCompression) &&
+		OpEqu(HWDownloadMode) &&
 		OpEqu(Dithering) &&
 		OpEqu(MaxAnisotropy) &&
 		OpEqu(SWExtraThreads) &&
@@ -413,6 +417,7 @@ bool Pcsx2Config::GSOptions::OptionsAreEqual(const GSOptions& right) const
 		OpEqu(UserHacks_RoundSprite) &&
 		OpEqu(UserHacks_TCOffsetX) &&
 		OpEqu(UserHacks_TCOffsetY) &&
+		OpEqu(UserHacks_CPUSpriteRenderBW) &&
 		OpEqu(UserHacks_TriFilter) &&
 		OpEqu(OverrideTextureBarriers) &&
 		OpEqu(OverrideGeometryShaders) &&
@@ -456,15 +461,11 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapEntry(VsyncQueueSize);
 
 	SettingsWrapEntry(FrameLimitEnable);
-	SettingsWrapEntry(FrameSkipEnable);
 	wrap.EnumEntry(CURRENT_SETTINGS_SECTION, "VsyncEnable", VsyncEnable, NULL, VsyncEnable);
 
 	// LimitScalar is set at runtime.
 	SettingsWrapEntry(FramerateNTSC);
 	SettingsWrapEntry(FrameratePAL);
-
-	SettingsWrapEntry(FramesToDraw);
-	SettingsWrapEntry(FramesToSkip);
 
 #ifdef PCSX2_CORE
 	// These are loaded from GSWindow in wx.
@@ -474,8 +475,10 @@ void Pcsx2Config::GSOptions::LoadSave(SettingsWrapper& wrap)
 
 	SettingsWrapEntry(Zoom);
 	SettingsWrapEntry(StretchY);
-	SettingsWrapEntry(OffsetX);
-	SettingsWrapEntry(OffsetY);
+	SettingsWrapEntryEx(Crop[0], "CropLeft");
+	SettingsWrapEntryEx(Crop[1], "CropTop");
+	SettingsWrapEntryEx(Crop[2], "CropRight");
+	SettingsWrapEntryEx(Crop[3], "CropBottom");
 #endif
 
 #ifndef PCSX2_CORE
@@ -517,8 +520,10 @@ void Pcsx2Config::GSOptions::ReloadIniSettings()
 
 	// Unfortunately, because code in the GS still reads the setting by key instead of
 	// using these variables, we need to use the old names. Maybe post 2.0 we can change this.
+	GSSettingBoolEx(PCRTCAntiBlur, "pcrtc_antiblur");
 	GSSettingBoolEx(DisableInterlaceOffset, "disable_interlace_offset");
 	GSSettingBoolEx(PCRTCOffsets, "pcrtc_offsets");
+	GSSettingBoolEx(PCRTCOverscan, "pcrtc_overscan");
 	GSSettingBool(IntegerScaling);
 	GSSettingBoolEx(LinearPresent, "linear_present");
 	GSSettingBool(UseDebugDevice);
@@ -537,15 +542,12 @@ void Pcsx2Config::GSOptions::ReloadIniSettings()
 	GSSettingBool(OsdShowGSStats);
 	GSSettingBool(OsdShowIndicators);
 
-	GSSettingBool(HWDisableReadbacks);
 	GSSettingBoolEx(AccurateDATE, "accurate_date");
 	GSSettingBoolEx(GPUPaletteConversion, "paltex");
-	GSSettingBoolEx(ConservativeFramebuffer, "conservative_framebuffer");
 	GSSettingBoolEx(AutoFlushSW, "autoflush_sw");
 	GSSettingBoolEx(PreloadFrameWithGSData, "preload_frame_with_gs_data");
 	GSSettingBoolEx(WrapGSMem, "wrap_gs_mem");
 	GSSettingBoolEx(Mipmap, "mipmap");
-	GSSettingBoolEx(AA1, "aa1");
 	GSSettingBoolEx(ManualUserHacks, "UserHacks");
 	GSSettingBoolEx(UserHacks_AlignSpriteX, "UserHacks_align_sprite_X");
 	GSSettingBoolEx(UserHacks_AutoFlush, "UserHacks_AutoFlush");
@@ -587,6 +589,7 @@ void Pcsx2Config::GSOptions::ReloadIniSettings()
 	GSSettingIntEnumEx(TextureFiltering, "filter");
 	GSSettingIntEnumEx(TexturePreloading, "texture_preloading");
 	GSSettingIntEnumEx(GSDumpCompression, "GSDumpCompression");
+	GSSettingIntEnumEx(HWDownloadMode, "HWDownloadMode");
 	GSSettingIntEx(Dithering, "dithering_ps2");
 	GSSettingIntEx(MaxAnisotropy, "MaxAnisotropy");
 	GSSettingIntEx(SWExtraThreads, "extrathreads");
@@ -601,6 +604,7 @@ void Pcsx2Config::GSOptions::ReloadIniSettings()
 	GSSettingIntEx(UserHacks_RoundSprite, "UserHacks_round_sprite_offset");
 	GSSettingIntEx(UserHacks_TCOffsetX, "UserHacks_TCOffsetX");
 	GSSettingIntEx(UserHacks_TCOffsetY, "UserHacks_TCOffsetY");
+	GSSettingIntEx(UserHacks_CPUSpriteRenderBW, "UserHacks_CPUSpriteRenderBW");
 	GSSettingIntEnumEx(UserHacks_TriFilter, "UserHacks_TriFilter");
 	GSSettingIntEx(OverrideTextureBarriers, "OverrideTextureBarriers");
 	GSSettingIntEx(OverrideGeometryShaders, "OverrideGeometryShaders");
@@ -647,6 +651,7 @@ void Pcsx2Config::GSOptions::MaskUserHacks()
 	UserHacks_TextureInsideRt = false;
 	UserHacks_TCOffsetX = 0;
 	UserHacks_TCOffsetY = 0;
+	UserHacks_CPUSpriteRenderBW = 0;
 	SkipDrawStart = 0;
 	SkipDrawEnd = 0;
 
@@ -658,13 +663,16 @@ void Pcsx2Config::GSOptions::MaskUserHacks()
 
 void Pcsx2Config::GSOptions::MaskUpscalingHacks()
 {
-	if (UpscaleMultiplier == 1 || ManualUserHacks)
+	if (UpscaleMultiplier != 1 && ManualUserHacks)
 		return;
 
 	UserHacks_AlignSpriteX = false;
 	UserHacks_MergePPSprite = false;
+	UserHacks_WildHack = false;
 	UserHacks_HalfPixelOffset = 0;
 	UserHacks_RoundSprite = 0;
+	UserHacks_TCOffsetX = 0;
+	UserHacks_TCOffsetY = 0;
 }
 
 bool Pcsx2Config::GSOptions::UseHardwareRenderer() const
@@ -1007,9 +1015,6 @@ void Pcsx2Config::FramerateOptions::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapEntry(NominalScalar);
 	SettingsWrapEntry(TurboScalar);
 	SettingsWrapEntry(SlomoScalar);
-
-	SettingsWrapEntry(SkipOnLimit);
-	SettingsWrapEntry(SkipOnTurbo);
 }
 
 Pcsx2Config::Pcsx2Config()
@@ -1069,8 +1074,11 @@ void Pcsx2Config::LoadSave(SettingsWrapper& wrap)
 	SettingsWrapBitBool(SavestateZstdCompression);
 	SettingsWrapBitBool(McdEnableEjection);
 	SettingsWrapBitBool(McdFolderAutoManage);
+#ifndef PCSX2_CORE
+	// We put mtap in the Pad section for Qt to make it easier to manually edit input profiles.
 	SettingsWrapBitBool(MultitapPort0_Enabled);
 	SettingsWrapBitBool(MultitapPort1_Enabled);
+#endif
 
 	// Process various sub-components:
 
@@ -1210,6 +1218,7 @@ void Pcsx2Config::CopyConfig(const Pcsx2Config& cfg)
 	PatchBios = cfg.PatchBios;
 	PatchRegion = cfg.PatchRegion;
 	BackupSavestate = cfg.BackupSavestate;
+	SavestateZstdCompression = cfg.SavestateZstdCompression;
 	McdEnableEjection = cfg.McdEnableEjection;
 	McdFolderAutoManage = cfg.McdFolderAutoManage;
 	MultitapPort0_Enabled = cfg.MultitapPort0_Enabled;

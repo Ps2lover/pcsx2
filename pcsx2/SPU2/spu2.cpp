@@ -125,37 +125,42 @@ void SPU2writeDMA7Mem(u16* pMem, u32 size)
 
 static void SPU2InitSndBuffer()
 {
-	SndBuffer::Cleanup();
-	try
-	{
-		SndBuffer::Init();
+	Console.WriteLn("Initializing SndBuffer at sample rate of %u...", SampleRate);
+	if (SndBuffer::Init())
 		return;
-	}
-	catch (std::exception& ex)
-	{
-		if (SampleRate != ConsoleSampleRate)
-		{
-			try
-			{
-				Console.Error("Failed to init SPU2 at adjusted sample rate %u, trying console rate.", SampleRate);
-				SndBuffer::Cleanup();
-				SampleRate = ConsoleSampleRate;
-				SndBuffer::Init();
-				return;
-			}
-			catch (std::exception& ex2)
-			{
-			}
-		}
 
-		Console.Error("SPU2 Error: Could not initialize device, or something.\nReason: %s", ex.what());
-		SPU2close();
+	if (SampleRate != ConsoleSampleRate)
+	{
+		// TODO: Resample on our side...
+		const int original_sample_rate = SampleRate;
+		Console.Error("Failed to init SPU2 at adjusted sample rate %u, trying console rate.", SampleRate);
+		SampleRate = ConsoleSampleRate;
+		if (SndBuffer::Init())
+			return;
+
+		SampleRate = original_sample_rate;
 	}
+
+	// just use nullout
+	OutputModule = FindOutputModuleById(NullOut->GetIdent());
+	if (!SndBuffer::Init())
+		pxFailRel("Failed to initialize nullout.");
 }
 
-s32 SPU2reset(PS2Modes isRunningPSXMode)
+static void SPU2UpdateSampleRate()
 {
-	int requiredSampleRate = (isRunningPSXMode == PS2Modes::PSX) ? 44100 : 48000;
+	const int new_sample_rate = static_cast<int>(std::round(static_cast<double>(ConsoleSampleRate) * DeviceSampleRateMultiplier));
+	if (SampleRate == new_sample_rate)
+		return;
+
+	SndBuffer::Cleanup();
+	SampleRate = new_sample_rate;
+	SPU2InitSndBuffer();
+}
+
+static void SPU2InternalReset(PS2Modes isRunningPSXMode)
+{
+	ConsoleSampleRate = (isRunningPSXMode == PS2Modes::PSX) ? 44100 : 48000;
 
 	if (isRunningPSXMode == PS2Modes::PS2)
 	{
@@ -169,14 +174,12 @@ s32 SPU2reset(PS2Modes isRunningPSXMode)
 		Cores[0].Init(0);
 		Cores[1].Init(1);
 	}
+}
 
-	if (ConsoleSampleRate != requiredSampleRate)
-	{
-		ConsoleSampleRate = requiredSampleRate;
-		SampleRate = static_cast<int>(std::round(static_cast<double>(ConsoleSampleRate) * DeviceSampleRateMultiplier));
-		SPU2InitSndBuffer();
-	}
-
+s32 SPU2reset(PS2Modes isRunningPSXMode)
+{
+	SPU2InternalReset(isRunningPSXMode);
+	SPU2UpdateSampleRate();
 	return 0;
 }
 
@@ -186,13 +189,7 @@ void SPU2SetDeviceSampleRateMultiplier(double multiplier)
 		return;
 
 	DeviceSampleRateMultiplier = multiplier;
-
-	const int new_sample_rate = static_cast<int>(std::round(static_cast<double>(ConsoleSampleRate) * multiplier));
-	if (SampleRate == new_sample_rate)
-		return;
-
-	SampleRate = new_sample_rate;
-	SPU2InitSndBuffer();
+	SPU2UpdateSampleRate();
 }
 
 s32 SPU2init()
@@ -247,7 +244,7 @@ s32 SPU2init()
 		}
 	}
 
-	SPU2reset(PS2Modes::PS2);
+	SPU2InternalReset(PS2Modes::PS2);
 
 	DMALogOpen();
 	InitADSR();
@@ -329,6 +326,7 @@ s32 SPU2open()
 
 	try
 	{
+		SampleRate = static_cast<int>(std::round(static_cast<double>(ConsoleSampleRate) * DeviceSampleRateMultiplier));
 		SPU2InitSndBuffer();
 
 #if defined(_WIN32) && !defined(PCSX2_CORE)

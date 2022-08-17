@@ -23,6 +23,7 @@
 
 #include "CDVD/CDVD.h"
 #include "Frontend/GameList.h"
+#include "Frontend/LogSink.h"
 
 #include "common/CrashHandler.h"
 #include "common/FileSystem.h"
@@ -30,7 +31,7 @@
 
 static void PrintCommandLineVersion()
 {
-	NoGUIHost::InitializeEarlyConsole();
+	Host::InitializeEarlyConsole();
 	std::fprintf(stderr, "%s\n", (NoGUIHost::GetAppNameAndVersion() + NoGUIHost::GetAppConfigSuffix()).c_str());
 	std::fprintf(stderr, "https://pcsx2.net/\n");
 	std::fprintf(stderr, "\n");
@@ -146,7 +147,7 @@ static bool ParseCommandLineOptions(int argc, char* argv[], std::shared_ptr<VMBo
 			}
 			else if (argv[i][0] == '-')
 			{
-				NoGUIHost::InitializeEarlyConsole();
+				Host::InitializeEarlyConsole();
 				std::fprintf(stderr, "Unknown parameter: '%s'", argv[i]);
 				return false;
 			}
@@ -165,7 +166,7 @@ static bool ParseCommandLineOptions(int argc, char* argv[], std::shared_ptr<VMBo
 	// or disc, we don't want to actually start.
 	if (autoboot && !autoboot->source_type.has_value() && autoboot->filename.empty() && autoboot->elf_override.empty())
 	{
-		NoGUIHost::InitializeEarlyConsole();
+		Host::InitializeEarlyConsole();
 		Console.Warning("Skipping autoboot due to no boot parameters.");
 		autoboot.reset();
 	}
@@ -174,7 +175,7 @@ static bool ParseCommandLineOptions(int argc, char* argv[], std::shared_ptr<VMBo
 	// scanning the game list).
 	if (NoGUIHost::InBatchMode() && !autoboot)
 	{
-		NoGUIHost::InitializeEarlyConsole();
+		Host::InitializeEarlyConsole();
 		Console.Warning("Disabling batch mode, because we have no autoboot.");
 		NoGUIHost::SetBatchMode(false);
 	}
@@ -190,9 +191,11 @@ int main(int argc, char* argv[])
 	if (!ParseCommandLineOptions(argc, argv, autoboot))
 		return EXIT_FAILURE;
 
-	//g_nogui_window = NoGUIPlatform::CreateSDLPlatform();
-	//g_nogui_window = NoGUIPlatform::CreateWaylandPlatform();
+#ifdef _WIN32
 	g_nogui_window = NoGUIPlatform::CreateWin32Platform();
+#elif defined(NOGUI_PLATFORM_WAYLAND)
+	g_nogui_window = NoGUIPlatform::CreateWaylandPlatform();
+#endif
 	if (!g_nogui_window)
 		return EXIT_FAILURE;
 

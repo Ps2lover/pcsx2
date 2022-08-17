@@ -129,11 +129,45 @@ static std::vector<u8> s_widescreen_cheats_data;
 static bool s_widescreen_cheats_loaded = false;
 static std::vector<u8> s_no_interlacing_cheats_data;
 static bool s_no_interlacing_cheats_loaded = false;
+static s32 s_active_widescreen_patches = 0;
 static u32 s_active_no_interlacing_patches = 0;
 static s32 s_current_save_slot = 1;
 static u32 s_frame_advance_count = 0;
 static u32 s_mxcsr_saved;
+static std::optional<LimiterModeType> s_limiter_mode_prior_to_hold_interaction;
 static bool s_gs_open_on_initialize = false;
+
+bool VMManager::PerformEarlyHardwareChecks(const char** error)
+{
+#define COMMON_DOWNLOAD_MESSAGE \
+	"PCSX2 builds can be downloaded from https://pcsx2.net/downloads/"
+
+#if defined(_M_X86)
+	// On Windows, this gets called as a global object constructor, before any of our objects are constructed.
+	// So, we have to put it on the stack instead.
+	x86capabilities temp_x86_caps;
+	temp_x86_caps.Identify();
+
+	if (!temp_x86_caps.hasStreamingSIMD4Extensions)
+	{
+		*error = "PCSX2 requires the Streaming SIMD 4 Extensions instruction set, which your CPU does not support.\n\n"
+				 "SSE4 is now a minimum requirement for PCSX2. You should either upgrade your CPU, or use an older build such as 1.6.0.\n\n" COMMON_DOWNLOAD_MESSAGE;
+		return false;
+	}
+
+#if _M_SSE >= 0x0501
+	if (!temp_x86_caps.hasAVX || !temp_x86_caps.hasAVX2)
+	{
+		*error = "This build of PCSX2 requires the Advanced Vector Extensions 2 instruction set, which your CPU does not support.\n\n"
+				 "You should download and run the SSE4 build of PCSX2 instead, or upgrade to a CPU that supports AVX2 to use this build.\n\n" COMMON_DOWNLOAD_MESSAGE;
+		return false;
+	}
+#endif
+#endif
+
+#undef COMMON_DOWNLOAD_MESSAGE
+	return true;
+}
 
 VMState VMManager::GetState()
 {
@@ -150,7 +184,8 @@ void VMManager::SetState(VMState state)
 
 	if (state != VMState::Stopping && (state == VMState::Paused || old_state == VMState::Paused))
 	{
-		if (state == VMState::Paused)
+		const bool paused = (state == VMState::Paused);
+		if (paused)
 		{
 			if (THREAD_VU1)
 				vu1Thread.WaitVU();
@@ -163,8 +198,10 @@ void VMManager::SetState(VMState state)
 			frameLimitReset();
 		}
 
-		SPU2SetOutputPaused(state == VMState::Paused);
-		if (state == VMState::Paused)
+		SPU2SetOutputPaused(paused);
+
+		// Host notification comes last after everything else.
+		if (paused)
 		{
 			Host::OnVMPaused();
 			FullscreenUI::OnVMPaused();
@@ -279,13 +316,14 @@ SysCpuProviderPack& GetCpuProviders()
 
 void VMManager::LoadSettings()
 {
-	auto lock = Host::GetSettingsLock();
+	std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
 	SettingsInterface* si = Host::GetSettingsInterface();
+	SettingsInterface* binding_si = Host::GetSettingsInterfaceForBindings();
 	SettingsLoadWrapper slw(*si);
 	EmuConfig.LoadSave(slw);
-	PAD::LoadConfig(*si);
-	InputManager::ReloadSources(*si);
-	InputManager::ReloadBindings(*si);
+	PAD::LoadConfig(*binding_si);
+	InputManager::ReloadSources(*si, lock);
+	InputManager::ReloadBindings(*si, *binding_si);
 
 	// Remove any user-specified hacks in the config (we don't want stale/conflicting values when it's globally disabled).
 	EmuConfig.GS.MaskUserHacks();
@@ -294,6 +332,16 @@ void VMManager::LoadSettings()
 	// Disable interlacing if we have no-interlacing patches active.
 	if (s_active_no_interlacing_patches > 0 && EmuConfig.GS.InterlaceMode == GSInterlaceMode::Automatic)
 		EmuConfig.GS.InterlaceMode = GSInterlaceMode::Off;
+
+	// Switch to 16:9 if widescreen patches are enabled, and AR is auto.
+	if (s_active_widescreen_patches > 0 && EmuConfig.GS.AspectRatio == AspectRatioType::RAuto4_3_3_2)
+	{
+		// Don't change when reloading settings in the middle of a FMV with switch.
+		if (EmuConfig.CurrentAspectRatio == EmuConfig.GS.AspectRatio)
+			EmuConfig.CurrentAspectRatio = AspectRatioType::R16_9;
+
+		EmuConfig.GS.AspectRatio = AspectRatioType::R16_9;
+	}
 
 	// Force MTVU off when playing back GS dumps, it doesn't get used.
 	if (GSDumpReplayer::IsReplayingDump())
@@ -327,8 +375,7 @@ std::string VMManager::GetGameSettingsPath(const std::string_view& game_serial, 
 
 std::string VMManager::GetInputProfilePath(const std::string_view& name)
 {
-	return Path::Combine(EmuFolders::InputProfiles, StringUtil::StdStringFromFormat("%.*s.ini",
-		static_cast<int>(name.size()), name.data()));
+	return Path::Combine(EmuFolders::InputProfiles, fmt::format("{}.ini", name));
 }
 
 void VMManager::RequestDisplaySize(float scale /*= 0.0f*/)
@@ -343,7 +390,7 @@ void VMManager::RequestDisplaySize(float scale /*= 0.0f*/)
 	switch (GSConfig.AspectRatio)
 	{
 		case AspectRatioType::RAuto4_3_3_2:
-			if (GSgetDisplayMode() == GSVideoMode::SDTV_480P)
+			if (GSgetDisplayMode() == GSVideoMode::SDTV_480P || (GSConfig.PCRTCOverscan && GSConfig.PCRTCOffsets))
 				x_scale = (3.0f / 2.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
 			else
 				x_scale = (4.0f / 3.0f) / (static_cast<float>(iwidth) / static_cast<float>(iheight));
@@ -407,7 +454,7 @@ bool VMManager::UpdateGameSettingsLayer()
 
 	std::string input_profile_name;
 	if (new_interface)
-		new_interface->GetStringValue("Pad", "InputProfileName", &input_profile_name);
+		new_interface->GetStringValue("EmuCore", "InputProfileName", &input_profile_name);
 
 	if (!s_game_settings_interface && !new_interface && s_input_profile_name == input_profile_name)
 		return false;
@@ -449,6 +496,8 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 {
 	const std::string crc_string(fmt::format("{:08X}", crc));
 	s_patches_crc = crc;
+	s_active_widescreen_patches = 0;
+	s_active_no_interlacing_patches = 0;
 	ForgetLoadedPatches();
 
 	std::string message;
@@ -478,10 +527,9 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 	}
 
 	// wide screen patches
-	int ws_patch_count = 0;
 	if (EmuConfig.EnableWideScreenPatches && crc != 0)
 	{
-		if (ws_patch_count = LoadPatchesFromDir(crc_string, EmuFolders::CheatsWS, "Widescreen hacks", false))
+		if (s_active_widescreen_patches = LoadPatchesFromDir(crc_string, EmuFolders::CheatsWS, "Widescreen hacks", false))
 		{
 			Console.WriteLn(Color_Gray, "Found widescreen patches in the cheats_ws folder --> skipping cheats_ws.zip");
 		}
@@ -499,13 +547,25 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 
 			if (!s_widescreen_cheats_data.empty())
 			{
-				ws_patch_count = LoadPatchesFromZip(crc_string, s_widescreen_cheats_data.data(), s_widescreen_cheats_data.size());
-				PatchesCon->WriteLn(Color_Green, "(Wide Screen Cheats DB) Patches Loaded: %d", ws_patch_count);
+				s_active_widescreen_patches = LoadPatchesFromZip(crc_string, s_widescreen_cheats_data.data(), s_widescreen_cheats_data.size());
+				PatchesCon->WriteLn(Color_Green, "(Wide Screen Cheats DB) Patches Loaded: %d", s_active_widescreen_patches);
 			}
 		}
 
-		if (ws_patch_count > 0)
-			fmt::format_to(std::back_inserter(message), "{}{} widescreen patches", (patch_count > 0 || cheat_count > 0) ? " and " : "", ws_patch_count);
+		if (s_active_widescreen_patches > 0)
+		{
+			fmt::format_to(std::back_inserter(message), "{}{} widescreen patches", (patch_count > 0 || cheat_count > 0) ? " and " : "", s_active_widescreen_patches);
+
+			// Switch to 16:9 if widescreen patches are enabled, and AR is auto.
+			if (EmuConfig.GS.AspectRatio == AspectRatioType::RAuto4_3_3_2)
+			{
+				// Don't change when reloading settings in the middle of a FMV with switch.
+				if (EmuConfig.CurrentAspectRatio == EmuConfig.GS.AspectRatio)
+					EmuConfig.CurrentAspectRatio = AspectRatioType::R16_9;
+
+				EmuConfig.GS.AspectRatio = AspectRatioType::R16_9;
+			}
+		}
 	}
 
 	// no-interlacing patches
@@ -536,7 +596,7 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 
 		if (s_active_no_interlacing_patches > 0)
 		{
-			fmt::format_to(std::back_inserter(message), "{}{} no-interlacing patches", (patch_count > 0 || cheat_count > 0 || ws_patch_count > 0) ? " and " : "", s_active_no_interlacing_patches);
+			fmt::format_to(std::back_inserter(message), "{}{} no-interlacing patches", (patch_count > 0 || cheat_count > 0 || s_active_widescreen_patches > 0) ? " and " : "", s_active_no_interlacing_patches);
 
 			// Disable interlacing in GS if active.
 			if (EmuConfig.GS.InterlaceMode == GSInterlaceMode::Automatic)
@@ -553,14 +613,14 @@ void VMManager::LoadPatches(const std::string& serial, u32 crc, bool show_messag
 
 	if (show_messages)
 	{
-		if (cheat_count > 0 || ws_patch_count > 0 || s_active_no_interlacing_patches > 0)
+		if (cheat_count > 0 || s_active_widescreen_patches > 0 || s_active_no_interlacing_patches > 0)
 		{
 			message += " are active.";
-			Host::AddKeyedOSDMessage("LoadPatches", std::move(message), 5.0f);
+			Host::AddKeyedOSDMessage("LoadPatches", std::move(message), 3.0f);
 		}
 		else if (show_messages_when_disabled)
 		{
-			Host::AddKeyedOSDMessage("LoadPatches", "No cheats or patches (widescreen, compatibility or others) are found / enabled.", 8.0f);
+			Host::AddKeyedOSDMessage("LoadPatches", "No cheats or patches (widescreen, compatibility or others) are found / enabled.", 3.0f);
 		}
 	}
 }
@@ -657,7 +717,7 @@ bool VMManager::AutoDetectSource(const std::string& filename)
 	{
 		if (!FileSystem::FileExists(filename.c_str()))
 		{
-			Host::ReportFormattedErrorAsync("Error", "Requested filename '%s' does not exist.", filename.c_str());
+			Host::ReportErrorAsync("Error", fmt::format("Requested filename '{}' does not exist.", filename));
 			return false;
 		}
 
@@ -714,7 +774,7 @@ bool VMManager::ApplyBootParameters(const VMBootParameters& params, std::string*
 		*state_to_load = GetSaveStateFileName(params.filename.c_str(), params.state_index.value());
 		if (state_to_load->empty())
 		{
-			Host::ReportFormattedErrorAsync("Error", "Could not resolve path indexed save state load.");
+			Host::ReportErrorAsync("Error", "Could not resolve path indexed save state load.");
 			return false;
 		}
 	}
@@ -724,7 +784,7 @@ bool VMManager::ApplyBootParameters(const VMBootParameters& params, std::string*
 	{
 		if (params.source_type.value() == CDVD_SourceType::Iso && !FileSystem::FileExists(params.filename.c_str()))
 		{
-			Host::ReportFormattedErrorAsync("Error", "Requested filename '%s' does not exist.", params.filename.c_str());
+			Host::ReportErrorAsync("Error", fmt::format("Requested filename '{}' does not exist.", params.filename));
 			return false;
 		}
 
@@ -744,7 +804,7 @@ bool VMManager::ApplyBootParameters(const VMBootParameters& params, std::string*
 	{
 		if (!FileSystem::FileExists(s_elf_override.c_str()))
 		{
-			Host::ReportFormattedErrorAsync("Error", "Requested boot ELF '%s' does not exist.", s_elf_override.c_str());
+			Host::ReportErrorAsync("Error", fmt::format("Requested boot ELF '{}' does not exist.", s_elf_override));
 			return false;
 		}
 
@@ -939,6 +999,7 @@ bool VMManager::Initialize(const VMBootParameters& boot_params)
 
 void VMManager::Shutdown(bool save_resume_state)
 {
+
 	// we'll probably already be stopping (this is how Qt calls shutdown),
 	// but just in case, so any of the stuff we call here knows we don't have a valid VM.
 	s_state.store(VMState::Stopping, std::memory_order_release);
@@ -971,7 +1032,10 @@ void VMManager::Shutdown(bool save_resume_state)
 		Host::OnGameChanged(s_disc_path, s_game_serial, s_game_name, 0);
 	}
 	s_active_game_fixes = 0;
+	s_active_widescreen_patches = 0;
 	s_active_no_interlacing_patches = 0;
+	s_limiter_mode_prior_to_hold_interaction.reset();
+
 	UpdateGameSettingsLayer();
 
 	std::string().swap(s_elf_override);
@@ -1011,7 +1075,9 @@ void VMManager::Reset()
 	const bool game_was_started = g_GameStarted;
 
 	s_active_game_fixes = 0;
+	s_active_widescreen_patches = 0;
 	s_active_no_interlacing_patches = 0;
+	s_limiter_mode_prior_to_hold_interaction.reset();
 
 	SysClearExecutionCache();
 	memBindConditionalHandlers();
@@ -1030,9 +1096,9 @@ std::string VMManager::GetSaveStateFileName(const char* game_serial, u32 game_cr
 	if (game_crc != 0)
 	{
 		if (slot < 0)
-			filename = StringUtil::StdStringFromFormat("%s (%08X).resume.p2s", game_serial, game_crc);
+			filename = fmt::format("{} ({:08X}).resume.p2s", game_serial, game_crc);
 		else
-			filename = StringUtil::StdStringFromFormat("%s (%08X).%02d.p2s", game_serial, game_crc, slot);
+			filename = fmt::format("{} ({:08X}).{:02d}.p2s", game_serial, game_crc, slot);
 
 		filename = Path::Combine(EmuFolders::Savestates, filename);
 	}
@@ -1086,13 +1152,20 @@ bool VMManager::DoLoadState(const char* filename)
 	{
 		Host::OnSaveStateLoading(filename);
 		SaveState_UnzipFromDisk(filename);
+
+		// HACK: LastELF isn't in the save state...
+		if (!s_elf_override.empty())
+			cdvdReloadElfInfo(fmt::format("host:{}", s_elf_override));
+		else
+			cdvdReloadElfInfo();
+
 		UpdateRunningGame(false, false);
 		Host::OnSaveStateLoaded(filename, true);
 		return true;
 	}
 	catch (Exception::BaseException& e)
 	{
-		Host::ReportErrorAsync("Failed to load save state", static_cast<const char*>(e.UserMsg().c_str()));
+		Host::ReportErrorAsync("Failed to load save state", e.UserMsg());
 		Host::OnSaveStateLoaded(filename, false);
 		return false;
 	}
@@ -1103,7 +1176,7 @@ bool VMManager::DoSaveState(const char* filename, s32 slot_for_message, bool zip
 	if (GSDumpReplayer::IsReplayingDump())
 		return false;
 
-	std::string osd_key(StringUtil::StdStringFromFormat("SaveStateSlot%d", slot_for_message));
+	std::string osd_key(fmt::format("SaveStateSlot{}", slot_for_message));
 
 	try
 	{
@@ -1128,7 +1201,7 @@ bool VMManager::DoSaveState(const char* filename, s32 slot_for_message, bool zip
 	}
 	catch (Exception::BaseException& e)
 	{
-		Host::AddKeyedFormattedOSDMessage(std::move(osd_key), 15.0f, "Failed to save save state: %s", static_cast<const char*>(e.DiagMsg().c_str()));
+		Host::AddKeyedOSDMessage(std::move(osd_key), fmt::format("Failed to save save state: {}.", e.DiagMsg()), 15.0f);
 		return false;
 	}
 }
@@ -1142,11 +1215,11 @@ void VMManager::ZipSaveState(std::unique_ptr<ArchiveEntryList> elist,
 	if (SaveState_ZipToDisk(std::move(elist), std::move(screenshot), filename))
 	{
 		if (slot_for_message >= 0 && VMManager::HasValidVM())
-			Host::AddKeyedFormattedOSDMessage(std::move(osd_key), 10.0f, "State saved to slot %d.", slot_for_message);
+			Host::AddKeyedOSDMessage(std::move(osd_key), fmt::format("State saved to slot {}.", slot_for_message), 10.0f);
 	}
 	else
 	{
-		Host::AddKeyedFormattedOSDMessage(std::move(osd_key), 15.0f, "Failed to save save state to slot %d", slot_for_message);
+		Host::AddKeyedOSDMessage(std::move(osd_key), fmt::format("Failed to save save state to slot {}.", slot_for_message), 15.0f);
 	}
 
 	DevCon.WriteLn("Zipping save state to '%s' took %.2f ms", filename, timer.GetTimeMilliseconds());
@@ -1203,11 +1276,11 @@ bool VMManager::LoadStateFromSlot(s32 slot)
 	const std::string filename(GetCurrentSaveStateFileName(slot));
 	if (filename.empty())
 	{
-		Host::AddKeyedFormattedOSDMessage("LoadStateFromSlot", 5.0f, "There is no save state in slot %d.", slot);
+		Host::AddKeyedOSDMessage("LoadStateFromSlot", fmt::format("There is no save state in slot {}.", slot), 5.0f);
 		return false;
 	}
 
-	Host::AddKeyedFormattedOSDMessage("LoadStateFromSlot", 5.0f, "Loading state from slot %d...", slot);
+	Host::AddKeyedOSDMessage("LoadStateFromSlot", fmt::format("Loading state from slot {}...", slot), 5.0f);
 	return DoLoadState(filename.c_str());
 }
 
@@ -1223,7 +1296,7 @@ bool VMManager::SaveStateToSlot(s32 slot, bool zip_on_thread)
 		return false;
 
 	// if it takes more than a minute.. well.. wtf.
-	Host::AddKeyedFormattedOSDMessage(StringUtil::StdStringFromFormat("SaveStateSlot%d", slot), 60.0f, "Saving state to slot %d...", slot);
+	Host::AddKeyedOSDMessage(fmt::format("SaveStateSlot{}", slot), fmt::format("Saving state to slot {}...", slot), 60.0f);
 	return DoSaveState(filename.c_str(), slot, zip_on_thread);
 }
 
@@ -1251,30 +1324,33 @@ void VMManager::FrameAdvance(u32 num_frames /*= 1*/)
 	SetState(VMState::Running);
 }
 
-bool VMManager::ChangeDisc(std::string path)
+bool VMManager::ChangeDisc(CDVD_SourceType source, std::string path)
 {
-	std::string old_path(CDVDsys_GetFile(CDVD_SourceType::Iso));
-	CDVD_SourceType old_type = CDVDsys_GetSourceType();
+	const CDVD_SourceType old_type = CDVDsys_GetSourceType();
+	const std::string old_path(CDVDsys_GetFile(old_type));
 
-	const std::string display_name(path.empty() ? std::string() : FileSystem::GetDisplayNameFromPath(path));
-	CDVDsys_ChangeSource(path.empty() ? CDVD_SourceType::NoDisc : CDVD_SourceType::Iso);
+	const std::string display_name((source != CDVD_SourceType::Iso) ? path : FileSystem::GetDisplayNameFromPath(path));
+	CDVDsys_ChangeSource(source);
 	if (!path.empty())
-		CDVDsys_SetFile(CDVD_SourceType::Iso, std::move(path));
+		CDVDsys_SetFile(source, std::move(path));
 
 	const bool result = DoCDVDopen();
 	if (result)
 	{
-		Host::AddFormattedOSDMessage(5.0f, "Disc changed to '%s'.", display_name.c_str());
+		if (source == CDVD_SourceType::NoDisc)
+			Host::AddKeyedOSDMessage("ChangeDisc", "Disc removed.", 3.0f);
+		else
+			Host::AddKeyedOSDMessage("ChangeDisc", fmt::format("Disc changed to '{}'.", display_name), 3.0f);
 	}
 	else
 	{
-		Host::AddFormattedOSDMessage(20.0f, "Failed to open new disc image '%s'. Reverting to old image.", display_name.c_str());
+		Host::AddKeyedOSDMessage("ChangeDisc", fmt::format("Failed to open new disc image '{}'. Reverting to old image.", display_name), 3.0f);
 		CDVDsys_ChangeSource(old_type);
 		if (!old_path.empty())
 			CDVDsys_SetFile(old_type, std::move(old_path));
 		if (!DoCDVDopen())
 		{
-			Host::AddFormattedOSDMessage(20.0f, "Failed to switch back to old disc image. Removing disc.");
+			Host::AddKeyedOSDMessage("ChangeDisc", "Failed to switch back to old disc image. Removing disc.", 3.0f);
 			CDVDsys_ChangeSource(CDVD_SourceType::NoDisc);
 			DoCDVDopen();
 		}
@@ -1287,6 +1363,11 @@ bool VMManager::ChangeDisc(std::string path)
 bool VMManager::IsElfFileName(const std::string_view& path)
 {
 	return StringUtil::EndsWithNoCase(path, ".elf");
+}
+
+bool VMManager::IsBlockDumpFileName(const std::string_view& path)
+{
+	return StringUtil::EndsWithNoCase(path, ".dump");
 }
 
 bool VMManager::IsGSDumpFileName(const std::string_view& path)
@@ -1303,7 +1384,7 @@ bool VMManager::IsSaveStateFileName(const std::string_view& path)
 
 bool VMManager::IsLoadableFileName(const std::string_view& path)
 {
-	return IsElfFileName(path) || IsGSDumpFileName(path) || GameList::IsScannableFilename(path);
+	return IsElfFileName(path) || IsGSDumpFileName(path) || IsBlockDumpFileName(path) || GameList::IsScannableFilename(path);
 }
 
 void VMManager::Execute()
@@ -1359,6 +1440,7 @@ void VMManager::Internal::GameStartingOnCPUThread()
 void VMManager::Internal::VSyncOnCPUThread()
 {
 	// TODO: Move frame limiting here to reduce CPU usage after sleeping...
+
 	ApplyLoadedPatches(PPT_CONTINUOUSLY);
 	ApplyLoadedPatches(PPT_COMBINED_0_1);
 
@@ -1523,6 +1605,21 @@ void VMManager::CheckForMemoryCardConfigChanges(const Pcsx2Config& old_config)
 	FileMcd_EmuClose();
 	FileMcd_EmuOpen();
 
+	// force card eject when files change
+	for (u32 port = 0; port < 2; port++)
+	{
+		for (u32 slot = 0; slot < 4; slot++)
+		{
+			const uint index = FileMcd_ConvertToSlot(port, slot);
+			if (EmuConfig.Mcd[index].Enabled != old_config.Mcd[index].Enabled ||
+				EmuConfig.Mcd[index].Filename != old_config.Mcd[index].Filename)
+			{
+				Console.WriteLn("Replugging memory card %u (port %u slot %u) due to source change", index, port, slot);
+				SetForceMcdEjectTimeoutNow(port, slot);
+			}
+		}
+	}
+
 	// force reindexing, mc folder code is janky
 	std::string sioSerial;
 	{
@@ -1551,6 +1648,7 @@ void VMManager::CheckForConfigChanges(const Pcsx2Config& old_config)
 	{
 		VMManager::ReloadPatches(true, true);
 	}
+
 }
 
 void VMManager::ApplySettings()
@@ -1570,7 +1668,15 @@ void VMManager::ApplySettings()
 	LoadSettings();
 
 	if (HasValidVM())
+	{
 		CheckForConfigChanges(old_config);
+	}
+	else if (GetMTGS().IsOpen())
+	{
+		// for the big picture UI, we still need to update GS settings, since it's running,
+		// and we don't update its config when we start the VM
+		CheckForGSConfigChanges(old_config);
+	}
 }
 
 bool VMManager::ReloadGameSettings()
@@ -1588,7 +1694,7 @@ static void HotkeyAdjustTargetSpeed(double delta)
 	VMManager::SetLimiterMode(LimiterModeType::Nominal);
 	gsUpdateFrequency(EmuConfig);
 	GetMTGS().SetVSync(EmuConfig.GetEffectiveVsyncMode());
-	Host::AddKeyedFormattedOSDMessage("SpeedChanged", 5.0f, "Target speed set to %.0f%%.", std::round(EmuConfig.Framerate.NominalScalar * 100.0));
+	Host::AddKeyedOSDMessage("SpeedChanged", fmt::format("Target speed set to {:.0f}%.", std::round(EmuConfig.Framerate.NominalScalar * 100.0)), 5.0f);
 }
 
 static constexpr s32 CYCLE_SAVE_STATE_SLOTS = 10;
@@ -1618,16 +1724,44 @@ static void HotkeyCycleSaveSlot(s32 delta)
 		if (len > 0 && date_buf[len - 1] == '\n')
 			date_buf[len - 1] = 0;
 
-		Host::AddKeyedFormattedOSDMessage("CycleSaveSlot", 5.0f, "Save slot %d selected (last save: %s).", s_current_save_slot, date_buf);
+		Host::AddKeyedOSDMessage("CycleSaveSlot", fmt::format("Save slot {} selected (last save: {}).", s_current_save_slot, date_buf), 5.0f);
 	}
 	else
 	{
-		Host::AddKeyedFormattedOSDMessage("CycleSaveSlot", 5.0f, "Save slot %d selected (no save yet).", s_current_save_slot);
+		Host::AddKeyedOSDMessage("CycleSaveSlot", fmt::format("Save slot {} selected (no save yet).", s_current_save_slot), 5.0f);
 	}
 }
 
+static void HotkeyLoadStateSlot(s32 slot)
+{
+	if (s_game_crc == 0)
+	{
+		Host::AddKeyedOSDMessage("LoadStateFromSlot", "Cannot load state from a slot without a game running.", 10.0f);
+		return;
+	}
+
+	if (!VMManager::HasSaveStateInSlot(s_game_serial.c_str(), s_game_crc, slot))
+	{
+		Host::AddKeyedOSDMessage("LoadStateFromSlot", fmt::format("No save state found in slot {}.", slot));
+		return;
+	}
+
+	VMManager::LoadStateFromSlot(slot);
+}
+
+static void HotkeySaveStateSlot(s32 slot)
+{
+	if (s_game_crc == 0)
+	{
+		Host::AddKeyedOSDMessage("SaveStateToSlot", "Cannot save state to a slot without a game running.", 10.0f);
+		return;
+	}
+
+	VMManager::SaveStateToSlot(slot);
+}
+
 BEGIN_HOTKEY_LIST(g_vm_manager_hotkeys)
-DEFINE_HOTKEY("ToggleFrameLimit", "System", "Toggle Frame Limit", [](bool pressed) {
+DEFINE_HOTKEY("ToggleFrameLimit", "System", "Toggle Frame Limit", [](s32 pressed) {
 	if (!pressed)
 	{
 		VMManager::SetLimiterMode((EmuConfig.LimiterMode != LimiterModeType::Unlimited) ?
@@ -1635,15 +1769,29 @@ DEFINE_HOTKEY("ToggleFrameLimit", "System", "Toggle Frame Limit", [](bool presse
                                       LimiterModeType::Nominal);
 	}
 })
-DEFINE_HOTKEY("ToggleTurbo", "System", "Toggle Turbo", [](bool pressed) {
+DEFINE_HOTKEY("ToggleTurbo", "System", "Toggle Turbo", [](s32 pressed) {
 	if (!pressed)
 	{
 		VMManager::SetLimiterMode((EmuConfig.LimiterMode != LimiterModeType::Turbo) ?
-                                      LimiterModeType::Turbo :
+									  LimiterModeType::Turbo :
                                       LimiterModeType::Nominal);
 	}
 })
-DEFINE_HOTKEY("ToggleSlowMotion", "System", "Toggle Slow Motion", [](bool pressed) {
+DEFINE_HOTKEY("HoldTurbo", "System", "Turbo (Hold)", [](s32 pressed) {
+	if (pressed > 0 && !s_limiter_mode_prior_to_hold_interaction.has_value())
+	{
+		s_limiter_mode_prior_to_hold_interaction = VMManager::GetLimiterMode();
+		VMManager::SetLimiterMode((s_limiter_mode_prior_to_hold_interaction.value() != LimiterModeType::Turbo) ?
+                                      LimiterModeType::Turbo :
+                                      LimiterModeType::Nominal);
+	}
+	else if (pressed >= 0 && s_limiter_mode_prior_to_hold_interaction.has_value())
+	{
+		VMManager::SetLimiterMode(s_limiter_mode_prior_to_hold_interaction.value());
+		s_limiter_mode_prior_to_hold_interaction.reset();
+	}
+})
+DEFINE_HOTKEY("ToggleSlowMotion", "System", "Toggle Slow Motion", [](s32 pressed) {
 	if (!pressed)
 	{
 		VMManager::SetLimiterMode((EmuConfig.LimiterMode != LimiterModeType::Slomo) ?
@@ -1651,40 +1799,72 @@ DEFINE_HOTKEY("ToggleSlowMotion", "System", "Toggle Slow Motion", [](bool presse
                                       LimiterModeType::Nominal);
 	}
 })
-DEFINE_HOTKEY("IncreaseSpeed", "System", "Increase Target Speed", [](bool pressed) {
+DEFINE_HOTKEY("IncreaseSpeed", "System", "Increase Target Speed", [](s32 pressed) {
 	if (!pressed)
 		HotkeyAdjustTargetSpeed(0.1);
 })
-DEFINE_HOTKEY("DecreaseSpeed", "System", "Decrease Target Speed", [](bool pressed) {
+DEFINE_HOTKEY("DecreaseSpeed", "System", "Decrease Target Speed", [](s32 pressed) {
 	if (!pressed)
 		HotkeyAdjustTargetSpeed(-0.1);
 })
-DEFINE_HOTKEY("ResetVM", "System", "Reset Virtual Machine", [](bool pressed) {
+DEFINE_HOTKEY("ResetVM", "System", "Reset Virtual Machine", [](s32 pressed) {
 	if (!pressed && VMManager::HasValidVM())
 		VMManager::Reset();
 })
-DEFINE_HOTKEY("FrameAdvance", "System", "Frame Advance", [](bool pressed) {
+DEFINE_HOTKEY("FrameAdvance", "System", "Frame Advance", [](s32 pressed) {
 	if (!pressed)
 		VMManager::FrameAdvance(1);
 })
 
-DEFINE_HOTKEY("PreviousSaveStateSlot", "Save States", "Select Previous Save Slot", [](bool pressed) {
+DEFINE_HOTKEY("PreviousSaveStateSlot", "Save States", "Select Previous Save Slot", [](s32 pressed) {
 	if (!pressed)
 		HotkeyCycleSaveSlot(-1);
 })
-DEFINE_HOTKEY("NextSaveStateSlot", "Save States", "Select Next Save Slot", [](bool pressed) {
+DEFINE_HOTKEY("NextSaveStateSlot", "Save States", "Select Next Save Slot", [](s32 pressed) {
 	if (!pressed)
 		HotkeyCycleSaveSlot(1);
 })
-DEFINE_HOTKEY("SaveStateToSlot", "Save States", "Save State To Selected Slot", [](bool pressed) {
+DEFINE_HOTKEY("SaveStateToSlot", "Save States", "Save State To Selected Slot", [](s32 pressed) {
 	if (!pressed)
 		VMManager::SaveStateToSlot(s_current_save_slot);
 })
-DEFINE_HOTKEY("LoadStateFromSlot", "Save States", "Load State From Selected Slot", [](bool pressed) {
+DEFINE_HOTKEY("LoadStateFromSlot", "Save States", "Load State From Selected Slot", [](s32 pressed) {
 	if (!pressed)
-		VMManager::LoadStateFromSlot(s_current_save_slot);
+		HotkeyLoadStateSlot(s_current_save_slot);
 })
-DEFINE_HOTKEY("OpenPauseMenu", "General", "Open Pause Menu", [](bool pressed) {
+
+#define DEFINE_HOTKEY_SAVESTATE_X(slotnum, slotnumstr) DEFINE_HOTKEY("SaveStateToSlot" #slotnum, \
+	"Save States", "Save State To Slot " #slotnumstr, [](s32 pressed) { if (!pressed) HotkeySaveStateSlot(slotnum); })
+DEFINE_HOTKEY_SAVESTATE_X(1, 01)
+DEFINE_HOTKEY_SAVESTATE_X(2, 02)
+DEFINE_HOTKEY_SAVESTATE_X(3, 03)
+DEFINE_HOTKEY_SAVESTATE_X(4, 04)
+DEFINE_HOTKEY_SAVESTATE_X(5, 05)
+DEFINE_HOTKEY_SAVESTATE_X(6, 06)
+DEFINE_HOTKEY_SAVESTATE_X(7, 07)
+DEFINE_HOTKEY_SAVESTATE_X(8, 08)
+DEFINE_HOTKEY_SAVESTATE_X(9, 09)
+DEFINE_HOTKEY_SAVESTATE_X(10, 10)
+#define DEFINE_HOTKEY_LOADSTATE_X(slotnum, slotnumstr) DEFINE_HOTKEY("LoadStateFromSlot" #slotnum, \
+	"Save States", "Load State From Slot " #slotnumstr, [](s32 pressed) { \
+		if (!pressed) \
+			HotkeyLoadStateSlot(slotnum); \
+	})
+DEFINE_HOTKEY_LOADSTATE_X(1, 01)
+DEFINE_HOTKEY_LOADSTATE_X(2, 02)
+DEFINE_HOTKEY_LOADSTATE_X(3, 03)
+DEFINE_HOTKEY_LOADSTATE_X(4, 04)
+DEFINE_HOTKEY_LOADSTATE_X(5, 05)
+DEFINE_HOTKEY_LOADSTATE_X(6, 06)
+DEFINE_HOTKEY_LOADSTATE_X(7, 07)
+DEFINE_HOTKEY_LOADSTATE_X(8, 08)
+DEFINE_HOTKEY_LOADSTATE_X(9, 09)
+DEFINE_HOTKEY_LOADSTATE_X(10, 10)
+
+#undef DEFINE_HOTKEY_SAVESTATE_X
+#undef DEFINE_HOTKEY_LOADSTATE_X
+
+DEFINE_HOTKEY("OpenPauseMenu", "General", "Open Pause Menu", [](s32 pressed) {
 	if (!pressed)
 		FullscreenUI::OpenPauseMenu();
 })

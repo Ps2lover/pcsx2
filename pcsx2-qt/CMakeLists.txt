@@ -10,16 +10,6 @@ else()
 	install(TARGETS pcsx2-qt DESTINATION ${CMAKE_SOURCE_DIR}/bin)
 endif()
 
-# Copy resource files if needed
-if(APPLE)
-	function(pcsx2_resource path basedir)
-	        get_filename_component(dir ${path} DIRECTORY)
-	        file(RELATIVE_PATH subdir ${basedir} ${dir})
-                target_sources(pcsx2-qt PRIVATE ${path})
-                set_source_files_properties(${path} PROPERTIES MACOSX_PACKAGE_LOCATION Resources/${subdir})
-	endfunction()
-endif()
-
 target_sources(pcsx2-qt PRIVATE
 	AboutDialog.cpp
 	AboutDialog.h
@@ -29,6 +19,7 @@ target_sources(pcsx2-qt PRIVATE
 	AutoUpdaterDialog.ui
 	DisplayWidget.cpp
 	DisplayWidget.h
+	EarlyHardwareCheck.cpp
 	EmuThread.cpp
 	EmuThread.h
 	Main.cpp
@@ -69,12 +60,16 @@ target_sources(pcsx2-qt PRIVATE
 	Settings/ControllerSettingsDialog.cpp
 	Settings/ControllerSettingsDialog.h
 	Settings/ControllerSettingsDialog.ui
+	Settings/ControllerSettingWidgetBinder.h
 	Settings/CreateMemoryCardDialog.cpp
 	Settings/CreateMemoryCardDialog.h
 	Settings/CreateMemoryCardDialog.ui
 	Settings/EmulationSettingsWidget.cpp
 	Settings/EmulationSettingsWidget.h
 	Settings/EmulationSettingsWidget.ui
+	Settings/FolderSettingsWidget.cpp
+	Settings/FolderSettingsWidget.h
+	Settings/FolderSettingsWidget.ui
 	Settings/GameFixSettingsWidget.cpp
 	Settings/GameFixSettingsWidget.h
 	Settings/GameFixSettingsWidget.ui
@@ -100,9 +95,14 @@ target_sources(pcsx2-qt PRIVATE
 	Settings/MemoryCardSettingsWidget.cpp
 	Settings/MemoryCardSettingsWidget.h
 	Settings/MemoryCardSettingsWidget.ui
+	Settings/DEV9DnsHostDialog.cpp
+	Settings/DEV9DnsHostDialog.h
+	Settings/DEV9DnsHostDialog.ui
 	Settings/DEV9SettingsWidget.cpp
 	Settings/DEV9SettingsWidget.h
 	Settings/DEV9SettingsWidget.ui
+	Settings/DEV9UiCommon.cpp
+	Settings/DEV9UiCommon.h
 	Settings/HddCreateQt.cpp
 	Settings/HddCreateQt.h
 	Settings/SettingsDialog.cpp
@@ -142,57 +142,4 @@ if(WIN32)
 	)
 endif()
 
-if (APPLE)
-	set_target_properties(pcsx2-qt PROPERTIES
-		MACOSX_BUNDLE true
-		MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in"
-		OUTPUT_NAME PCSX2
-	)
-
-	file(GLOB_RECURSE RESOURCE_FILES ${CMAKE_SOURCE_DIR}/bin/resources/*)
-	foreach(path IN LISTS RESOURCE_FILES)
-	        get_filename_component(file ${path} NAME)
-	        if("${file}" MATCHES "^\\.") # Don't copy macOS garbage (mainly Finder's .DS_Store files) into application
-	                continue()
-	        endif()
-	        if (NOT WIN32 AND "${path}" MATCHES "/dx11/") # Don't include unneccessary stuff
-	                continue()
-	        endif()
-	        if ("${path}" MATCHES "/locale/") # Generate locales with gettext instead of copying them from bin
-	                continue()
-	        endif()
-	        pcsx2_resource(${path} ${CMAKE_SOURCE_DIR}/bin/resources/)
-		message("res ${path}")
-	endforeach()
-
-	# Import metallib files.
-	add_custom_command(TARGET pcsx2-qt POST_BUILD
-		COMMAND "${CMAKE_COMMAND}" -E copy_if_different $<TARGET_FILE_DIR:PCSX2>/*.metallib "$<TARGET_FILE_DIR:pcsx2-qt>/../Resources/"
-	)
-
-	# Icon file.
-	pcsx2_resource(${CMAKE_CURRENT_SOURCE_DIR}/PCSX2.icns ${CMAKE_CURRENT_SOURCE_DIR})
-
-	# If they say to skip postprocess bundle, leave the target in but make it so they have
-	# to manually run it
-	if (SKIP_POSTPROCESS_BUNDLE)
-		set(postprocessBundleType "")
-	else()
-		set(postprocessBundleType ALL)
-
-		#add_custom_target(pcsx2-postprocess-bundle ${postprocessBundleType}
-		#	COMMAND ${CMAKE_COMMAND} "-DPCSX2_BUNDLE_PATH=$<TARGET_FILE_DIR:pcsx2-qt>/../.."
-		#		-P ${CMAKE_SOURCE_DIR}/cmake/Pcsx2PostprocessBundle.cmake
-		#)
-		#add_dependencies(pcsx2-postprocess-bundle pcsx2-qt)
-
-		# Call macdeployqt to add the plugins into PCSX2.app
-		get_target_property(MOC_EXECUTABLE_LOCATION Qt6::moc IMPORTED_LOCATION)
-		get_filename_component(QT_BINARY_DIRECTORY "${MOC_EXECUTABLE_LOCATION}" DIRECTORY)
-		find_program(MACDEPLOYQT_EXE macdeployqt HINTS "${QT_BINARY_DIRECTORY}")
-		add_custom_command(TARGET pcsx2-qt POST_BUILD
-			COMMAND "${MACDEPLOYQT_EXE}"
-			"$<TARGET_FILE_DIR:pcsx2-qt>/../.."
-		)
-	endif()
-endif()
+setup_main_executable(pcsx2-qt)

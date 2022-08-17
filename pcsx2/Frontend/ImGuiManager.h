@@ -63,16 +63,17 @@ namespace ImGuiManager
 	/// This font is allocated on demand.
 	ImFont* GetLargeFont();
 
+#ifdef PCSX2_CORE
 	/// Called on the UI or CPU thread in response to mouse movement.
-	void ProcessHostMouseMoveEvent(s32 x, s32 y);
+	void UpdateMousePosition(float x, float y);
 
 	/// Called on the CPU thread in response to a mouse button press.
 	/// Returns true if ImGui intercepted the event, and regular handlers should not execute.
-	bool ProcessHostMouseButtonEvent(InputBindingKey key, float value);
+	bool ProcessPointerButtonEvent(InputBindingKey key, float value);
 
 	/// Called on the CPU thread in response to a mouse wheel movement.
 	/// Returns true if ImGui intercepted the event, and regular handlers should not execute.
-	bool ProcessHostMouseWheelEvent(InputBindingKey key, float value);
+	bool ProcessPointerAxisEvent(InputBindingKey key, float value);
 
 	/// Called on the CPU thread in response to a key press.
 	/// Returns true if ImGui intercepted the event, and regular handlers should not execute.
@@ -80,5 +81,6 @@ namespace ImGuiManager
 
 	/// Called on the CPU thread when any input event fires. Allows imgui to take over controller navigation.
 	bool ProcessGenericInputEvent(GenericInputBinding key, float value);
+#endif
 } // namespace ImGuiManager
 

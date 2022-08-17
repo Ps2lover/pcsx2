@@ -36,11 +36,7 @@ enum class ShaderConvert
 	DATM_1,
 	DATM_0,
 	MOD_256,
-	SCANLINE,
-	DIAGONAL_FILTER,
 	TRANSPARENCY_FILTER,
-	TRIANGULAR_FILTER,
-	COMPLEX_FILTER,
 	FLOAT32_TO_16_BITS,
 	FLOAT32_TO_32_BITS,
 	FLOAT32_TO_RGBA8,
@@ -55,9 +51,21 @@ enum class ShaderConvert
 	Count
 };
 
+enum class PresentShader
+{
+	COPY = 0,
+	SCANLINE,
+	DIAGONAL_FILTER,
+	TRIANGULAR_FILTER,
+	COMPLEX_FILTER,
+	LOTTES_FILTER,
+	Count
+};
+
 /// Get the name of a shader
 /// (Can't put methods on an enum class)
 const char* shaderName(ShaderConvert value);
+const char* shaderName(PresentShader value);
 
 enum ChannelFetch
 {
@@ -71,6 +79,41 @@ enum ChannelFetch
 };
 
 #pragma pack(push, 1)
+
+class DisplayConstantBuffer
+{
+public:
+	GSVector4 SourceRect; // +0,xyzw
+	GSVector4 TargetRect; // +16,xyzw
+	GSVector2 SourceSize; // +32,xy
+	GSVector2 TargetSize; // +40,zw
+	GSVector2 TargetResolution; // +48,xy
+	GSVector2 RcpTargetResolution; // +56,zw
+	GSVector2 SourceResolution; // +64,xy
+	GSVector2 RcpSourceResolution; // +72,zw
+	GSVector4 TimeAndPad; // seconds since GS init +76,xyzw
+	// +96
+
+	// assumes that sRect is normalized
+	void SetSource(const GSVector4& sRect, const GSVector2i& sSize)
+	{
+		SourceRect = sRect;
+		SourceResolution = GSVector2(static_cast<float>(sSize.x), static_cast<float>(sSize.y));
+		RcpSourceResolution = GSVector2(1.0f) / SourceResolution;
+		SourceSize = GSVector2((sRect.z - sRect.x) * SourceResolution.x, (sRect.w - sRect.y) * SourceResolution.y);
+	}
+	void SetTarget(const GSVector4& dRect, const GSVector2i& dSize)
+	{
+		TargetRect = dRect;
+		TargetResolution = GSVector2(static_cast<float>(dSize.x), static_cast<float>(dSize.y));
+		RcpTargetResolution = GSVector2(1.0f) / TargetResolution;
+		TargetSize = GSVector2(dRect.z - dRect.x, dRect.w - dRect.y);
+	}
+	void SetTime(float time)
+	{
+		TimeAndPad = GSVector4(time);
+	}
+};
 
 class MergeConstantBuffer
 {
@@ -221,6 +264,7 @@ struct alignas(16) GSHWDrawConfig
 				u32 blend_b     : 2;
 				u32 blend_c     : 2;
 				u32 blend_d     : 2;
+				u32 fixed_one_a : 1;
 				u32 clr_hw      : 3;
 				u32 hdr         : 1;
 				u32 colclip     : 1;
@@ -626,22 +670,23 @@ private:
 protected:
 	static constexpr u32 MAX_POOLED_TEXTURES = 300;
 
-	HostDisplay* m_display;
-	GSTexture* m_merge;
-	GSTexture* m_weavebob;
-	GSTexture* m_blend;
-	GSTexture* m_target_tmp;
-	GSTexture* m_current;
+	HostDisplay* m_display = nullptr;
+
+	GSTexture* m_merge = nullptr;
+	GSTexture* m_weavebob = nullptr;
+	GSTexture* m_blend = nullptr;
+	GSTexture* m_target_tmp = nullptr;
+	GSTexture* m_current = nullptr;
 	struct
 	{
 		size_t stride, start, count, limit;
-	} m_vertex;
+	} m_vertex = {};
 	struct
 	{
 		size_t start, count, limit;
-	} m_index;
-	unsigned int m_frame; // for ageing the pool
-	bool m_rbswapped;
+	} m_index = {};
+	unsigned int m_frame = 0; // for ageing the pool
+	bool m_rbswapped = false;
 	FeatureSupport m_features;
 
 	virtual GSTexture* CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format) = 0;
@@ -687,9 +732,6 @@ public:
 	virtual void BeginScene() {}
 	virtual void EndScene();
 
-	virtual bool HasDepthSparse() { return false; }
-	virtual bool HasColorSparse() { return false; }
-
 	virtual void ClearRenderTarget(GSTexture* t, const GSVector4& c) {}
 	virtual void ClearRenderTarget(GSTexture* t, u32 c) {}
 	virtual void InvalidateRenderTarget(GSTexture* t) {}
@@ -700,8 +742,6 @@ public:
 	virtual void PopDebugGroup() {}
 	virtual void InsertDebugMessage(DebugMessageCategory category, const char* fmt, ...) {}
 
-	GSTexture* CreateSparseRenderTarget(int w, int h, GSTexture::Format format, bool clear = true);
-	GSTexture* CreateSparseDepthStencil(int w, int h, GSTexture::Format format, bool clear = true);
 	GSTexture* CreateRenderTarget(int w, int h, GSTexture::Format format, bool clear = true);
 	GSTexture* CreateDepthStencil(int w, int h, GSTexture::Format format, bool clear = true);
 	GSTexture* CreateTexture(int w, int h, bool mipmap, GSTexture::Format format, bool prefer_reuse = false);
@@ -725,11 +765,15 @@ public:
 
 	void StretchRect(GSTexture* sTex, GSTexture* dTex, const GSVector4& dRect, ShaderConvert shader = ShaderConvert::COPY, bool linear = true);
 
+	/// Performs a screen blit for display. If dTex is null, it assumes you are writing to the system framebuffer/swap chain.
+	virtual void PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect, PresentShader shader, float shaderTime, bool linear) {}
+
 	virtual void RenderHW(GSHWDrawConfig& config) {}
 
 	__fi FeatureSupport Features() const { return m_features; }
 	__fi GSTexture* GetCurrent() const { return m_current; }
 
+	void ClearCurrent();
 	void Merge(GSTexture* sTex[3], GSVector4* sRect, GSVector4* dRect, const GSVector2i& fs, const GSRegPMODE& PMODE, const GSRegEXTBUF& EXTBUF, const GSVector4& c);
 	void Interlace(const GSVector2i& ds, int field, int mode, float yoffset);
 	void FXAA();

@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <err.h>
+#include <unistd.h>
 #endif
 
 #include <fcntl.h>

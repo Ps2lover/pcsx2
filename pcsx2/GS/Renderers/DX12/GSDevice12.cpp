@@ -48,11 +48,6 @@ static bool IsIntConvertShader(ShaderConvert i)
 
 static bool IsDATMConvertShader(ShaderConvert i) { return (i == ShaderConvert::DATM_0 || i == ShaderConvert::DATM_1); }
 
-static bool IsPresentConvertShader(ShaderConvert i)
-{
-	return (i == ShaderConvert::COPY || (i >= ShaderConvert::SCANLINE && i <= ShaderConvert::COMPLEX_FILTER));
-}
-
 static D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE GetLoadOpForTexture(GSTexture12* tex)
 {
 	if (!tex)
@@ -157,8 +152,9 @@ bool GSDevice12::Create(HostDisplay* display)
 	if (!CreateBuffers())
 		return false;
 
-	if (!CompileConvertPipelines() || !CompileInterlacePipelines() ||
-		!CompileMergePipelines() || !CompilePostProcessingPipelines())
+	if (!CompileConvertPipelines() || !CompilePresentPipelines() ||
+		!CompileInterlacePipelines() || !CompileMergePipelines() ||
+		!CompilePostProcessingPipelines())
 	{
 		Host::ReportErrorAsync("GS", "Failed to compile utility pipelines");
 		return false;
@@ -323,8 +319,7 @@ void GSDevice12::LookupNativeFormat(GSTexture::Format format, DXGI_FORMAT* d3d_f
 
 GSTexture* GSDevice12::CreateSurface(GSTexture::Type type, int width, int height, int levels, GSTexture::Format format)
 {
-	pxAssert(type != GSTexture::Type::Offscreen && type != GSTexture::Type::SparseRenderTarget &&
-			 type != GSTexture::Type::SparseDepthStencil);
+	pxAssert(type != GSTexture::Type::Offscreen);
 
 	const u32 clamped_width = static_cast<u32>(std::clamp<int>(1, width, D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION));
 	const u32 clamped_height = static_cast<u32>(std::clamp<int>(1, height, D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION));
@@ -499,6 +494,20 @@ void GSDevice12::StretchRect(GSTexture* sTex, const GSVector4& sRect, GSTexture*
 	const u32 index = (red ? 1 : 0) | (green ? 2 : 0) | (blue ? 4 : 0) | (alpha ? 8 : 0);
 	DoStretchRect(
 		static_cast<GSTexture12*>(sTex), sRect, static_cast<GSTexture12*>(dTex), dRect, m_color_copy[index].get(), false);
+}
+
+void GSDevice12::PresentRect(GSTexture* sTex, const GSVector4& sRect, GSTexture* dTex, const GSVector4& dRect,
+	PresentShader shader, float shaderTime, bool linear)
+{
+	DisplayConstantBuffer cb;
+	cb.SetSource(sRect, sTex->GetSize());
+	cb.SetTarget(dRect, dTex ? dTex->GetSize() : GSVector2i(m_display->GetWindowWidth(), m_display->GetWindowHeight()));
+	cb.SetTime(shaderTime);
+	SetUtilityRootSignature();
+	SetUtilityPushConstants(&cb, sizeof(cb));
+
+	DoStretchRect(static_cast<GSTexture12*>(sTex), sRect, static_cast<GSTexture12*>(dTex), dRect,
+		m_present[static_cast<int>(shader)].get(), linear);
 }
 
 void GSDevice12::BeginRenderPassForStretchRect(GSTexture12* dTex, const GSVector4i& dtex_rc, const GSVector4i& dst_rc)
@@ -975,7 +984,7 @@ GSDevice12::ComPtr<ID3DBlob> GSDevice12::GetUtilityVertexShader(const std::strin
 GSDevice12::ComPtr<ID3DBlob> GSDevice12::GetUtilityPixelShader(const std::string& source, const char* entry_point)
 {
 	ShaderMacro sm_model(m_shader_cache.GetFeatureLevel());
-	sm_model.AddMacro("PS_SCALE_FACTOR", std::max(1u, GSConfig.UpscaleMultiplier));
+	sm_model.AddMacro("PS_SCALE_FACTOR", GSConfig.UpscaleMultiplier);
 	return m_shader_cache.GetPixelShader(source, sm_model.GetPtr(), entry_point);
 }
 
@@ -1132,17 +1141,6 @@ bool GSDevice12::CompileConvertPipelines()
 
 		D3D12::SetObjectNameFormatted(m_convert[index].get(), "Convert pipeline %d", i);
 
-		if (/*swapchain && */ IsPresentConvertShader(i))
-		{
-			// TODO: compile a present variant too
-			gpb.SetRenderTarget(0, DXGI_FORMAT_R8G8B8A8_UNORM);
-			m_present[index] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
-			if (!m_present[index])
-				return false;
-
-			D3D12::SetObjectNameFormatted(m_present[index].get(), "Convert pipeline %d (Present)", i);
-		}
-
 		if (i == ShaderConvert::COPY)
 		{
 			// compile the variant for setting up hdr rendering
@@ -1213,6 +1211,50 @@ bool GSDevice12::CompileConvertPipelines()
 
 			D3D12::SetObjectNameFormatted(m_date_image_setup_pipelines[ds][datm].get(), "DATE image clear pipeline (ds=%u, datm=%u)", ds, datm);
 		}
+	}
+
+	return true;
+}
+
+bool GSDevice12::CompilePresentPipelines()
+{
+	std::optional<std::string> shader = Host::ReadResourceFileToString("shaders/dx11/present.fx");
+	if (!shader)
+	{
+		Host::ReportErrorAsync("GS", "Failed to read shaders/dx11/present.fx.");
+		return false;
+	}
+
+	ComPtr<ID3DBlob> m_convert_vs = GetUtilityVertexShader(*shader, "vs_main");
+	if (!m_convert_vs)
+		return false;
+
+	D3D12::GraphicsPipelineBuilder gpb;
+	gpb.SetRootSignature(m_utility_root_signature.get());
+	AddUtilityVertexAttributes(gpb);
+	gpb.SetNoCullRasterizationState();
+	gpb.SetNoBlendingState();
+	gpb.SetVertexShader(m_convert_vs.get());
+	gpb.SetDepthState(false, false, D3D12_COMPARISON_FUNC_ALWAYS);
+	gpb.SetNoStencilState();
+	gpb.SetRenderTarget(0, DXGI_FORMAT_R8G8B8A8_UNORM);
+
+	for (PresentShader i = PresentShader::COPY; static_cast<int>(i) < static_cast<int>(PresentShader::Count);
+		 i = static_cast<PresentShader>(static_cast<int>(i) + 1))
+	{
+		const int index = static_cast<int>(i);
+
+		ComPtr<ID3DBlob> ps(GetUtilityPixelShader(*shader, shaderName(i)));
+		if (!ps)
+			return false;
+
+		gpb.SetPixelShader(ps.get());
+
+		m_present[index] = gpb.Create(g_d3d12_context->GetDevice(), m_shader_cache, false);
+		if (!m_present[index])
+			return false;
+
+		D3D12::SetObjectNameFormatted(m_present[index].get(), "Present pipeline %d", i);
 	}
 
 	return true;
@@ -1490,7 +1532,7 @@ const ID3DBlob* GSDevice12::GetTFXPixelShader(const GSHWDrawConfig::PSSelector& 
 		return it->second.get();
 
 	ShaderMacro sm(m_shader_cache.GetFeatureLevel());
-	sm.AddMacro("PS_SCALE_FACTOR", std::max(1u, GSConfig.UpscaleMultiplier));
+	sm.AddMacro("PS_SCALE_FACTOR", GSConfig.UpscaleMultiplier);
 	sm.AddMacro("PS_FST", sel.fst);
 	sm.AddMacro("PS_WMS", sel.wms);
 	sm.AddMacro("PS_WMT", sel.wmt);
@@ -1524,6 +1566,7 @@ const ID3DBlob* GSDevice12::GetTFXPixelShader(const GSHWDrawConfig::PSSelector& 
 	sm.AddMacro("PS_BLEND_C", sel.blend_c);
 	sm.AddMacro("PS_BLEND_D", sel.blend_d);
 	sm.AddMacro("PS_BLEND_MIX", sel.blend_mix);
+	sm.AddMacro("PS_FIXED_ONE_A", sel.fixed_one_a);
 	sm.AddMacro("PS_PABE", sel.pabe);
 	sm.AddMacro("PS_DITHER", sel.dither);
 	sm.AddMacro("PS_ZCLAMP", sel.zclamp);
@@ -2425,6 +2468,7 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 	}
 	if (config.pal)
 		PSSetShaderResource(1, config.pal, true);
+
 	if (config.blend.constant_enable)
 		SetBlendConstants(config.blend.constant);
 
@@ -2506,22 +2550,32 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 		}
 	}
 
-	if (config.tex && config.tex == config.ds)
+	if (config.tex)
 	{
-		// requires a copy of the depth buffer. this is mainly for ico.
-		copy_ds = static_cast<GSTexture12*>(CreateDepthStencil(rtsize.x, rtsize.y, GSTexture::Format::DepthStencil, false));
-		if (copy_ds)
+		if (config.tex == config.ds)
 		{
-			EndRenderPass();
+			// requires a copy of the depth buffer. this is mainly for ico.
+			copy_ds = static_cast<GSTexture12*>(CreateDepthStencil(rtsize.x, rtsize.y, GSTexture::Format::DepthStencil, false));
+			if (copy_ds)
+			{
+				EndRenderPass();
 
-			GL_PUSH("Copy depth to temp texture for shuffle {%d,%d %dx%d}",
-				config.drawarea.left, config.drawarea.top,
-				config.drawarea.width(), config.drawarea.height());
+				GL_PUSH("Copy depth to temp texture for shuffle {%d,%d %dx%d}",
+					config.drawarea.left, config.drawarea.top,
+					config.drawarea.width(), config.drawarea.height());
 
-			copy_ds->SetState(GSTexture::State::Invalidated);
-			CopyRect(config.ds, copy_ds, config.drawarea, config.drawarea.left, config.drawarea.top);
-			PSSetShaderResource(0, copy_ds, true);
+				copy_ds->SetState(GSTexture::State::Invalidated);
+				CopyRect(config.ds, copy_ds, config.drawarea, config.drawarea.left, config.drawarea.top);
+				PSSetShaderResource(0, copy_ds, true);
+			}
 		}
+	}
+	// clear texture binding when it's bound to RT or DS
+	else if (m_tfx_textures[0] &&
+			 ((config.rt && static_cast<GSTexture12*>(config.rt)->GetSRVDescriptor() == m_tfx_textures[0]) ||
+				 (config.ds && static_cast<GSTexture12*>(config.ds)->GetSRVDescriptor() == m_tfx_textures[0])))
+	{
+		PSSetShaderResource(0, nullptr, false);
 	}
 
 	// avoid restarting the render pass just to switch from rt+depth to rt and vice versa
@@ -2556,7 +2610,7 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 
 		const GSVector4 sRect(GSVector4(render_area) / GSVector4(rtsize.x, rtsize.y).xyxy());
 		DrawStretchRect(sRect, GSVector4(render_area), rtsize);
-		g_perfmon.Put(GSPerfMon::TextureCopies);
+		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
 		GL_POP();
 	}
@@ -2641,7 +2695,7 @@ void GSDevice12::RenderHW(GSHWDrawConfig& config)
 		SetPipeline(m_hdr_finish_pipelines[pipe.ds].get());
 		SetUtilityTexture(hdr_rt, m_point_sampler_cpu);
 		DrawStretchRect(sRect, GSVector4(render_area), rtsize);
-		g_perfmon.Put(GSPerfMon::TextureCopies);
+		g_perfmon.Put(GSPerfMon::TextureCopies, 1);
 
 		Recycle(hdr_rt);
 	}

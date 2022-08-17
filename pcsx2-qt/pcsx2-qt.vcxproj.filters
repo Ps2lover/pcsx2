@@ -170,7 +170,13 @@
     <ClCompile Include="$(IntDir)Settings\moc_AudioSettingsWidget.cpp">
       <Filter>moc</Filter>
     </ClCompile>
+    <ClCompile Include="$(IntDir)Settings\moc_DEV9DnsHostDialog.cpp">
+      <Filter>moc</Filter>
+    </ClCompile>
     <ClCompile Include="$(IntDir)Settings\moc_DEV9SettingsWidget.cpp">
+      <Filter>moc</Filter>
+    </ClCompile>
+    <ClCompile Include="$(IntDir)Settings\moc_DEV9UiCommon.cpp">
       <Filter>moc</Filter>
     </ClCompile>
     <ClCompile Include="Settings\GameSummaryWidget.cpp">
@@ -188,7 +194,13 @@
     <ClCompile Include="Settings\CreateMemoryCardDialog.cpp">
       <Filter>Settings</Filter>
     </ClCompile>
+    <ClCompile Include="Settings\DEV9DnsHostDialog.cpp">
+      <Filter>Settings</Filter>
+    </ClCompile>
     <ClCompile Include="Settings\DEV9SettingsWidget.cpp">
+      <Filter>Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="Settings\DEV9UiCommon.cpp">
       <Filter>Settings</Filter>
     </ClCompile>
     <ClCompile Include="Settings\HddCreateQt.cpp">
@@ -204,6 +216,13 @@
     <ClCompile Include="Tools\InputRecording\NewInputRecordingDlg.cpp">
       <Filter>Tools\Input Recording</Filter>
     </ClCompile>
+    <ClCompile Include="EarlyHardwareCheck.cpp" />
+    <ClCompile Include="Settings\FolderSettingsWidget.cpp">
+      <Filter>Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="$(IntDir)Settings\moc_FolderSettingsWidget.cpp">
+      <Filter>moc</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="..\pcsx2\windows\PCSX2.manifest">
@@ -216,6 +235,9 @@
     <ClInclude Include="QtUtils.h" />
     <ClInclude Include="SettingWidgetBinder.h" />
     <ClInclude Include="Settings\HddCreateQt.h">
+      <Filter>Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="Settings\ControllerSettingWidgetBinder.h">
       <Filter>Settings</Filter>
     </ClInclude>
   </ItemGroup>
@@ -290,12 +312,21 @@
     <QtMoc Include="Settings\CreateMemoryCardDialog.h">
       <Filter>Settings</Filter>
     </QtMoc>
+    <QtMoc Include="Settings\DEV9DnsHostDialog.h">
+      <Filter>Settings</Filter>
+    </QtMoc>
     <QtMoc Include="Settings\DEV9SettingsWidget.h">
+      <Filter>Settings</Filter>
+    </QtMoc>
+    <QtMoc Include="Settings\DEV9UiCommon.h">
       <Filter>Settings</Filter>
     </QtMoc>
     <QtMoc Include="AutoUpdaterDialog.h" />
     <QtMoc Include="Tools\InputRecording\NewInputRecordingDlg.h">
       <Filter>Tools\Input Recording</Filter>
+    </QtMoc>
+    <QtMoc Include="Settings\FolderSettingsWidget.h">
+      <Filter>Settings</Filter>
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
@@ -359,6 +390,9 @@
     <QtUi Include="Settings\CreateMemoryCardDialog.ui">
       <Filter>Settings</Filter>
     </QtUi>
+    <QtUi Include="Settings\DEV9DnsHostDialog.ui">
+      <Filter>Settings</Filter>
+    </QtUi>
     <QtUi Include="Settings\DEV9SettingsWidget.ui">
       <Filter>Settings</Filter>
     </QtUi>
@@ -369,5 +403,10 @@
     <QtUi Include="Tools\InputRecording\NewInputRecordingDlg.ui">
       <Filter>Tools\Input Recording</Filter>
     </QtUi>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Settings\FolderSettingsWidget.ui">
+      <Filter>Settings</Filter>
+    </None>
   </ItemGroup>
 </Project>

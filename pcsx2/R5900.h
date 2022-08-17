@@ -260,6 +260,7 @@ alignas(16) extern fpuRegisters fpuRegs;
 alignas(16) extern tlbs tlb[48];
 
 extern u32 g_nextEventCycle;
+extern u32 g_lastEventCycle;
 extern bool eeEventTestIsActive;
 extern u32 s_iLastCOP0Cycle;
 extern u32 s_iLastPERFCycle[2];
@@ -413,7 +414,9 @@ enum EE_EventType
 	
 	DMAC_GIF_UNIT,
 	VIF_VU0_FINISH,
-	VIF_VU1_FINISH
+	VIF_VU1_FINISH,
+	IPU_PROCESS,
+	VU_MTVU_BUSY
 };
 
 extern void CPU_INT( EE_EventType n, s32 ecycle );
@@ -433,6 +436,7 @@ extern void cpuSetNextEvent( u32 startCycle, s32 delta );
 extern void cpuSetNextEventDelta( s32 delta );
 extern int  cpuTestCycle( u32 startCycle, s32 delta );
 extern void cpuSetEvent();
+extern int  cpuGetCycles(int interrupt);
 
 extern void _cpuEventTest_Shared();		// for internal use by the Dynarecs and Ints inside R5900:
 

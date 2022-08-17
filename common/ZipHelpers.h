@@ -82,13 +82,13 @@ template<typename T>
 static inline std::optional<T> ReadFileInZipToContainer(zip_t* zip, const char* name)
 {
 	std::optional<T> ret;
-	const zip_int64_t file_index = zip_name_locate(zip, name, 0);
+	const zip_int64_t file_index = zip_name_locate(zip, name, ZIP_FL_NOCASE);
 	if (file_index >= 0)
 	{
 		zip_stat_t zst;
-		if (zip_stat_index(zip, file_index, 0, &zst) == 0)
+		if (zip_stat_index(zip, file_index, ZIP_FL_NOCASE, &zst) == 0)
 		{
-			zip_file_t* zf = zip_fopen_index(zip, file_index, 0);
+			zip_file_t* zf = zip_fopen_index(zip, file_index, ZIP_FL_NOCASE);
 			if (zf)
 			{
 				ret = T();
@@ -98,6 +98,33 @@ static inline std::optional<T> ReadFileInZipToContainer(zip_t* zip, const char* 
 					ret.reset();
 				}
 			}
+		}
+	}
+
+	return ret;
+}
+
+template <typename T>
+static inline std::optional<T> ReadFileInZipToContainer(zip_file_t* file, u32 chunk_size = 4096)
+{
+	std::optional<T> ret = T();
+	for (;;)
+	{
+		const size_t pos = ret->size();
+		ret->resize(pos + chunk_size);
+		const s64 read = zip_fread(file, ret->data() + pos, chunk_size);
+		if (read < 0)
+		{
+			// read error
+			ret.reset();
+			break;
+		}
+
+		// if less than chunk size, we're EOF
+		if (read != static_cast<s64>(chunk_size))
+		{
+			ret->resize(pos + static_cast<size_t>(read));
+			break;
 		}
 	}
 

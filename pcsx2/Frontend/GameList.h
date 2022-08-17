@@ -42,10 +42,35 @@ namespace GameList
 
 	enum class Region
 	{
-		NTSC_UC,
+		NTSC_B,
+		NTSC_C,
+		NTSC_HK,
 		NTSC_J,
-		PAL,
+		NTSC_K,
+		NTSC_T,
+		NTSC_U,
 		Other,
+		PAL_A,
+		PAL_AU,
+		PAL_AF,
+		PAL_BE,
+		PAL_E,
+		PAL_F,
+		PAL_FI,
+		PAL_G,
+		PAL_GR,
+		PAL_I,
+		PAL_IN,
+		PAL_M,
+		PAL_NL,
+		PAL_NO,
+		PAL_P,
+		PAL_R,
+		PAL_S,
+		PAL_SC,
+		PAL_SW,
+		PAL_SWI,
+		PAL_UK,
 		Count
 	};
 
@@ -66,6 +91,8 @@ namespace GameList
 		u32 crc = 0;
 
 		CompatibilityRating compatibility_rating = CompatibilityRating::Unknown;
+
+		__fi bool IsDisc() const { return (type == EntryType::PS1Disc || type == EntryType::PS2Disc); }
 	};
 
 	const char* EntryTypeToString(EntryType type);
@@ -90,6 +117,10 @@ namespace GameList
 	u32 GetEntryCount();
 
 	bool IsGameListLoaded();
+
+	/// Populates the game list with files in the configured directories.
+	/// If invalidate_cache is set, all files will be re-scanned.
+	/// If only_cache is set, no new files will be scanned, only those present in the cache.
 	void Refresh(bool invalidate_cache, ProgressCallback* progress = nullptr);
 
 	std::string GetCoverImagePathForEntry(const Entry* entry);

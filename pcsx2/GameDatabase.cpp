@@ -277,7 +277,6 @@ void GameDatabase::parseAndInsert(const std::string_view& serial, const c4::yml:
 
 static const char* s_gs_hw_fix_names[] = {
 	"autoFlush",
-	"conservativeFramebuffer",
 	"cpuFramebufferConversion",
 	"disableDepthSupport",
 	"wrapGSMem",
@@ -297,6 +296,7 @@ static const char* s_gs_hw_fix_names[] = {
 	"roundSprite",
 	"texturePreloading",
 	"deinterlace",
+	"cpuSpriteRenderBW",
 	"textureBarriers",
 };
 static_assert(std::size(s_gs_hw_fix_names) == static_cast<u32>(GameDatabaseSchema::GSHWFixId::Count), "HW fix name lookup is correct size");
@@ -325,7 +325,6 @@ bool GameDatabaseSchema::isUserHackHWFix(GSHWFixId id)
 		case GSHWFixId::Mipmap:
 		case GSHWFixId::TexturePreloading:
 		case GSHWFixId::TextureBarriers:
-		case GSHWFixId::ConservativeFramebuffer:
 		case GSHWFixId::PointListPalette:
 			return false;
 
@@ -447,8 +446,85 @@ u32 GameDatabaseSchema::GameEntry::applyGameFixes(Pcsx2Config& config, bool appl
 	return num_applied_fixes;
 }
 
+bool GameDatabaseSchema::GameEntry::configMatchesHWFix(const Pcsx2Config::GSOptions& config, GSHWFixId id, int value) const
+{
+	switch (id)
+	{
+		case GSHWFixId::AutoFlush:
+			return (static_cast<int>(config.UserHacks_AutoFlush) == value);
+
+		case GSHWFixId::CPUFramebufferConversion:
+			return (static_cast<int>(config.UserHacks_CPUFBConversion) == value);
+
+		case GSHWFixId::DisableDepthSupport:
+			return (static_cast<int>(config.UserHacks_DisableDepthSupport) == value);
+
+		case GSHWFixId::WrapGSMem:
+			return (static_cast<int>(config.WrapGSMem) == value);
+
+		case GSHWFixId::PreloadFrameData:
+			return (static_cast<int>(config.PreloadFrameWithGSData) == value);
+
+		case GSHWFixId::DisablePartialInvalidation:
+			return (static_cast<int>(config.UserHacks_DisablePartialInvalidation) == value);
+
+		case GSHWFixId::TextureInsideRT:
+			return (static_cast<int>(config.UserHacks_TextureInsideRt) == value);
+
+		case GSHWFixId::AlignSprite:
+			return (config.UpscaleMultiplier == 1 || static_cast<int>(config.UserHacks_AlignSpriteX) == value);
+
+		case GSHWFixId::MergeSprite:
+			return (config.UpscaleMultiplier == 1 || static_cast<int>(config.UserHacks_MergePPSprite) == value);
+
+		case GSHWFixId::WildArmsHack:
+			return (config.UpscaleMultiplier == 1 || static_cast<int>(config.UserHacks_WildHack) == value);
+
+		case GSHWFixId::PointListPalette:
+			return (static_cast<int>(config.PointListPalette) == value);
+
+		case GSHWFixId::Mipmap:
+			return (config.HWMipmap == HWMipmapLevel::Automatic || static_cast<int>(config.HWMipmap) == value);
+
+		case GSHWFixId::TrilinearFiltering:
+			return (config.UserHacks_TriFilter == TriFiltering::Automatic || static_cast<int>(config.UserHacks_TriFilter) == value);
+
+		case GSHWFixId::SkipDrawStart:
+			return (config.SkipDrawStart == value);
+
+		case GSHWFixId::SkipDrawEnd:
+			return (config.SkipDrawEnd == value);
+
+		case GSHWFixId::HalfBottomOverride:
+			return (config.UserHacks_HalfBottomOverride == value);
+
+		case GSHWFixId::HalfPixelOffset:
+			return (config.UpscaleMultiplier == 1 || config.UserHacks_HalfPixelOffset == value);
+
+		case GSHWFixId::RoundSprite:
+			return (config.UpscaleMultiplier == 1 || config.UserHacks_RoundSprite == value);
+
+		case GSHWFixId::TexturePreloading:
+			return (static_cast<int>(config.TexturePreloading) <= value);
+
+		case GSHWFixId::Deinterlace:
+			return (config.InterlaceMode == GSInterlaceMode::Automatic || static_cast<int>(config.InterlaceMode) == value);
+
+		case GSHWFixId::CPUSpriteRenderBW:
+			return (config.UserHacks_CPUSpriteRenderBW == value);
+
+		case GSHWFixId::TextureBarriers:
+			return (config.OverrideTextureBarriers < 0 || config.OverrideTextureBarriers == value);
+
+		default:
+			return false;
+	}
+}
+
 u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& config) const
 {
+	std::string disabled_fixes;
+
 	// Only apply GS HW fixes if the user hasn't manually enabled HW fixes.
 	const bool apply_auto_fixes = !config.ManualUserHacks;
 	if (!apply_auto_fixes)
@@ -459,7 +535,10 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 	{
 		if (isUserHackHWFix(id) && !apply_auto_fixes)
 		{
+			if (configMatchesHWFix(config, id, value))
+				continue;
 			PatchesCon->Warning("[GameDB] Skipping GS Hardware Fix: %s to [mode=%d]", getHWFixName(id), value);
+			fmt::format_to(std::back_inserter(disabled_fixes), "{} {} = {}", disabled_fixes.empty() ? " " : "\n ", getHWFixName(id), value);
 			continue;
 		}
 
@@ -467,10 +546,6 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 		{
 			case GSHWFixId::AutoFlush:
 				config.UserHacks_AutoFlush = (value > 0);
-				break;
-
-			case GSHWFixId::ConservativeFramebuffer:
-				config.ConservativeFramebuffer = (value > 0);
 				break;
 
 			case GSHWFixId::CPUFramebufferConversion:
@@ -576,6 +651,10 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 			}
 			break;
 
+			case GSHWFixId::CPUSpriteRenderBW:
+				config.UserHacks_CPUSpriteRenderBW = value;
+				break;
+
 			case GSHWFixId::TextureBarriers:
 			{
 				if (value >= 0 && value <= 2 && config.OverrideTextureBarriers < 0)
@@ -593,6 +672,20 @@ u32 GameDatabaseSchema::GameEntry::applyGSHardwareFixes(Pcsx2Config::GSOptions& 
 
 	// fixup skipdraw range just in case the db has a bad range (but the linter should catch this)
 	config.SkipDrawEnd = std::max(config.SkipDrawStart, config.SkipDrawEnd);
+
+#ifdef PCSX2_CORE
+	if (!disabled_fixes.empty())
+	{
+		Host::AddKeyedOSDMessage("HWFixesWarning",
+			fmt::format("Manual GS hardware renderer fixes are enabled, automatic fixes were not applied:\n{}",
+				disabled_fixes),
+			3.0f);
+	}
+	else
+	{
+		Host::RemoveKeyedOSDMessage("HWFixesWarning");
+	}
+#endif
 
 	return num_applied_fixes;
 }

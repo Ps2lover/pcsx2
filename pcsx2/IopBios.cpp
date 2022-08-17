@@ -69,7 +69,7 @@ static std::string hostRoot;
 void Hle_SetElfPath(const char* elfFileName)
 {
 	DevCon.WriteLn("HLE Host: Will load ELF: %s\n", elfFileName);
-	hostRoot = std::string(Path::GetDirectory(elfFileName)) + "/";
+	hostRoot = Path::ToNativePath(Path::GetDirectory(elfFileName));
 	Console.WriteLn("HLE Host: Set 'host:' root path to: %s\n", hostRoot.c_str());
 }
 
@@ -100,12 +100,25 @@ namespace R3000A
 
 	static std::string host_path(const std::string path)
 	{
-		// We are NOT allowing to use the root of the host unit.
-		// For now it just supports relative folders from the location of the elf
-		if (StringUtil::StartsWith(path, hostRoot))
-			return path;
+		std::string native_path(Path::Canonicalize(path));
+		std::string new_path;
+		if (StringUtil::StartsWith(native_path, hostRoot))
+			new_path = std::move(native_path);
 		else // relative paths
-			return Path::Combine(hostRoot, path);
+			new_path = Path::Combine(hostRoot, native_path);
+
+		// Double-check that it falls within the directory of the elf.
+		// Not a real sandbox, but emulators shouldn't be treated as such. Don't run untrusted code!
+		std::string canonicalized_path(Path::Canonicalize(new_path));
+		if (!StringUtil::StartsWith(canonicalized_path, hostRoot))
+		{
+			Console.Error(fmt::format(
+				"IopHLE: Denying access to path outside of ELF directory. Requested path: '{}', Resolved path: '{}', ELF directory: '{}'",
+				path, new_path, hostRoot));
+			new_path.clear();
+		}
+
+		return new_path;
 	}
 
 	// This is a workaround for GHS on *NIX platforms
@@ -316,6 +329,7 @@ namespace R3000A
 			if (!FileSystem::FindFiles(path.c_str(), "*", FILESYSTEM_FIND_FILES | FILESYSTEM_FIND_FOLDERS | FILESYSTEM_FIND_RELATIVE_PATHS | FILESYSTEM_FIND_HIDDEN_FILES, &results))
 			{
 				return -IOP_ENOENT; // Should return ENOTDIR if path is a file?
+                                    // Would love to but err's code is platform dependent
 			}
 
 			*dir = new HostDir(std::move(results), std::move(path));
@@ -635,6 +649,8 @@ namespace R3000A
 				const std::string path = full_path.substr(full_path.find(':') + 1);
 				const std::string file_path(host_path(path));
 				const bool succeeded = FileSystem::DeleteFilePath(file_path.c_str());
+				if (!succeeded)
+					Console.Warning("IOPHLE remove_HLE failed for '%s'", file_path.c_str());
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 			}
@@ -650,6 +666,8 @@ namespace R3000A
 				const std::string path = full_path.substr(full_path.find(':') + 1);
 				const std::string folder_path(host_path(path));
 				const bool succeeded = FileSystem::CreateDirectoryPath(folder_path.c_str(), false);
+				if (!succeeded)
+					Console.Warning("IOPHLE mkdir_HLE failed for '%s'", folder_path.c_str());
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 				return 1;
@@ -689,6 +707,8 @@ namespace R3000A
 				const std::string path = full_path.substr(full_path.find(':') + 1);
 				const std::string folder_path(host_path(path));
 				const bool succeeded = FileSystem::DeleteDirectory(folder_path.c_str());
+				if (!succeeded)
+					Console.Warning("IOPHLE rmdir_HLE failed for '%s'", folder_path.c_str());
 				v0 = succeeded ? 0 : -IOP_EIO;
 				pc = ra;
 				return 1;

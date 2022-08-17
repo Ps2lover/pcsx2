@@ -16,10 +16,6 @@
   <property name="windowTitle">
    <string>PCSX2</string>
   </property>
-  <property name="windowIcon">
-   <iconset resource="resources/resources.qrc">
-    <normaloff>:/icons/AppIconLarge.png</normaloff>:/icons/AppIconLarge.png</iconset>
-  </property>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
@@ -82,6 +78,7 @@
     <addaction name="menuLoadState"/>
     <addaction name="menuSaveState"/>
     <addaction name="separator"/>
+    <addaction name="actionSettings"/>
     <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuSettings">
@@ -97,6 +94,7 @@
     <addaction name="actionAudioSettings"/>
     <addaction name="actionMemoryCardSettings"/>
     <addaction name="actionDEV9Settings"/>
+    <addaction name="actionFolderSettings"/>
     <addaction name="actionControllerSettings"/>
     <addaction name="actionHotkeySettings"/>
     <addaction name="separator"/>
@@ -227,6 +225,7 @@
    <addaction name="actionStartFile"/>
    <addaction name="actionStartDisc"/>
    <addaction name="actionStartBios"/>
+   <addaction name="actionStartFullscreenUI2"/>
    <addaction name="separator"/>
    <addaction name="actionPowerOff"/>
    <addaction name="actionReset"/>
@@ -518,6 +517,9 @@
    <property name="text">
     <string>&amp;Settings...</string>
    </property>
+   <property name="menuRole">
+    <enum>QAction::PreferencesRole</enum>
+   </property>
   </action>
   <action name="actionChangeDiscFromFile">
    <property name="text">
@@ -569,6 +571,15 @@
    </property>
    <property name="text">
     <string>&amp;Network &amp;&amp; HDD</string>
+   </property>
+  </action>
+  <action name="actionFolderSettings">
+   <property name="icon">
+    <iconset theme="folder-open-line">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Folders</string>
    </property>
   </action>
   <action name="actionViewToolbar">
@@ -820,8 +831,21 @@
    </property>
   </action>
   <action name="actionStartFullscreenUI">
+   <property name="icon">
+    <iconset theme="tv-2-line">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
    <property name="text">
     <string>Start Big Picture Mode</string>
+   </property>
+  </action>
+  <action name="actionStartFullscreenUI2">
+   <property name="icon">
+    <iconset theme="tv-2-line">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Big Picture</string>
    </property>
   </action>
  </widget>

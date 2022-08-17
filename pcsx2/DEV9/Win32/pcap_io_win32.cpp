@@ -135,7 +135,7 @@ bool load_pcap()
 void unload_pcap()
 {
 #ifndef _UWP
-	FreeLibrary(hpcap);
+ 	FreeLibrary(hpcap);
 #endif
 	hpcap = nullptr;
 }

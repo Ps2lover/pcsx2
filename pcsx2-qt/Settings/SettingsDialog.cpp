@@ -24,6 +24,7 @@
 #include "pcsx2/Frontend/INISettingsInterface.h"
 
 #include "EmuThread.h"
+#include "MainWindow.h"
 #include "QtHost.h"
 #include "QtUtils.h"
 #include "SettingsDialog.h"
@@ -37,6 +38,7 @@
 #include "GameListSettingsWidget.h"
 #include "GraphicsSettingsWidget.h"
 #include "DEV9SettingsWidget.h"
+#include "FolderSettingsWidget.h"
 #include "HotkeySettingsWidget.h"
 #include "InterfaceSettingsWidget.h"
 #include "MemoryCardSettingsWidget.h"
@@ -54,8 +56,8 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 	setupUi(nullptr);
 }
 
-SettingsDialog::SettingsDialog(std::unique_ptr<SettingsInterface> sif, const GameList::Entry* game, u32 game_crc)
-	: QDialog()
+SettingsDialog::SettingsDialog(QWidget* parent, std::unique_ptr<SettingsInterface> sif, const GameList::Entry* game, u32 game_crc)
+	: QDialog(parent)
 	, m_sif(std::move(sif))
 	, m_game_crc(game_crc)
 {
@@ -132,6 +134,12 @@ void SettingsDialog::setupUi(const GameList::Entry* game)
 	addWidget(m_dev9_settings = new DEV9SettingsWidget(this, m_ui.settingsContainer), tr("Network & HDD"), QStringLiteral("dashboard-line"),
 		tr("<strong>Network & HDD Settings</strong><hr>These options control the network connectivity and internal HDD storage of the console.<br><br>"
 		   "Mouse over an option for additional information."));
+
+	if (!isPerGameSettings())
+	{
+		addWidget(m_folder_settings = new FolderSettingsWidget(this, m_ui.settingsContainer), tr("Folders"), QStringLiteral("folder-open-line"),
+			tr("<strong>Folder Settings</strong><hr>These options control where PCSX2 will save runtime data files."));
+	}
 
 	m_ui.settingsCategory->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
 	m_ui.settingsCategory->setCurrentRow(0);
@@ -363,13 +371,13 @@ void SettingsDialog::setBoolSettingValue(const char* section, const char* key, s
 	{
 		value.has_value() ? m_sif->SetBoolValue(section, key, value.value()) : m_sif->DeleteValue(section, key);
 		m_sif->Save();
+		g_emu_thread->reloadGameSettings();
 	}
 	else
 	{
 		value.has_value() ? QtHost::SetBaseBoolSettingValue(section, key, value.value()) : QtHost::RemoveBaseSettingValue(section, key);
+		g_emu_thread->applySettings();
 	}
-
-	g_emu_thread->applySettings();
 }
 
 void SettingsDialog::setIntSettingValue(const char* section, const char* key, std::optional<int> value)
@@ -378,13 +386,13 @@ void SettingsDialog::setIntSettingValue(const char* section, const char* key, st
 	{
 		value.has_value() ? m_sif->SetIntValue(section, key, value.value()) : m_sif->DeleteValue(section, key);
 		m_sif->Save();
+		g_emu_thread->reloadGameSettings();
 	}
 	else
 	{
 		value.has_value() ? QtHost::SetBaseIntSettingValue(section, key, value.value()) : QtHost::RemoveBaseSettingValue(section, key);
+		g_emu_thread->applySettings();
 	}
-
-	g_emu_thread->applySettings();
 }
 
 void SettingsDialog::setFloatSettingValue(const char* section, const char* key, std::optional<float> value)
@@ -393,13 +401,13 @@ void SettingsDialog::setFloatSettingValue(const char* section, const char* key, 
 	{
 		value.has_value() ? m_sif->SetFloatValue(section, key, value.value()) : m_sif->DeleteValue(section, key);
 		m_sif->Save();
+		g_emu_thread->reloadGameSettings();
 	}
 	else
 	{
 		value.has_value() ? QtHost::SetBaseFloatSettingValue(section, key, value.value()) : QtHost::RemoveBaseSettingValue(section, key);
+		g_emu_thread->applySettings();
 	}
-
-	g_emu_thread->applySettings();
 }
 
 void SettingsDialog::setStringSettingValue(const char* section, const char* key, std::optional<const char*> value)
@@ -408,13 +416,13 @@ void SettingsDialog::setStringSettingValue(const char* section, const char* key,
 	{
 		value.has_value() ? m_sif->SetStringValue(section, key, value.value()) : m_sif->DeleteValue(section, key);
 		m_sif->Save();
+		g_emu_thread->reloadGameSettings();
 	}
 	else
 	{
 		value.has_value() ? QtHost::SetBaseStringSettingValue(section, key, value.value()) : QtHost::RemoveBaseSettingValue(section, key);
+		g_emu_thread->applySettings();
 	}
-
-	g_emu_thread->applySettings();
 }
 
 void SettingsDialog::openGamePropertiesDialog(const GameList::Entry* game, const std::string_view& serial, u32 crc)
@@ -439,7 +447,8 @@ void SettingsDialog::openGamePropertiesDialog(const GameList::Entry* game, const
 								   .arg(game ? QtUtils::StringViewToQString(game->title) : QStringLiteral("<UNKNOWN>"))
 								   .arg(QtUtils::StringViewToQString(Path::GetFileName(sif->GetFileName()))));
 
-	SettingsDialog* dialog = new SettingsDialog(std::move(sif), game, crc);
+	SettingsDialog* dialog = new SettingsDialog(g_main_window, std::move(sif), game, crc);
 	dialog->setWindowTitle(window_title);
+	dialog->setModal(false);
 	dialog->show();
 }

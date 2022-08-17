@@ -28,12 +28,6 @@ namespace NoGUIHost
 	bool Initialize();
 	void Shutdown();
 
-	void UpdateFolders();
-	void UpdateLogging();
-
-	/// Initializes early console logging (for printing command line arguments).
-	void InitializeEarlyConsole();
-
 	/// Sets batch mode (exit after game shutdown).
 	bool InBatchMode();
 	void SetBatchMode(bool enabled);
@@ -66,7 +60,7 @@ namespace NoGUIHost
 
 	/// Called on the UI thread in response to various events.
 	void ProcessPlatformWindowResize(s32 width, s32 height, float scale);
-	void ProcessPlatformMouseMoveEvent(s32 x, s32 y);
+	void ProcessPlatformMouseMoveEvent(float x, float y);
 	void ProcessPlatformMouseButtonEvent(s32 button, bool pressed);
 	void ProcessPlatformMouseWheelEvent(float x, float y);
 	void ProcessPlatformKeyEvent(s32 key, bool pressed);

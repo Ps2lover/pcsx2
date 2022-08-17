@@ -199,6 +199,14 @@ enum class GSDumpCompressionMethod : u8
 	Zstandard,
 };
 
+enum class GSHardwareDownloadMode : u8
+{
+	Enabled,
+	NoReadbacks,
+	Unsynchronized,
+	Disabled
+};
+
 // Template function for casting enumerations to their underlying type
 template <typename Enumeration>
 typename std::underlying_type<Enumeration>::type enum_cast(Enumeration E)
@@ -434,8 +442,10 @@ struct Pcsx2Config
 			struct
 			{
 				bool
-					DisableInterlaceOffset: 1,
+					PCRTCAntiBlur : 1,
+					DisableInterlaceOffset : 1,
 					PCRTCOffsets : 1,
+					PCRTCOverscan : 1,
 					IntegerScaling : 1,
 					LinearPresent : 1,
 					SyncToHostRefreshRate : 1,
@@ -456,15 +466,12 @@ struct Pcsx2Config
 					OsdShowIndicators : 1;
 
 				bool
-					HWDisableReadbacks : 1,
 					AccurateDATE : 1,
 					GPUPaletteConversion : 1,
-					ConservativeFramebuffer : 1,
 					AutoFlushSW : 1,
 					PreloadFrameWithGSData : 1,
 					WrapGSMem : 1,
 					Mipmap : 1,
-					AA1 : 1,
 					PointListPalette : 1,
 					ManualUserHacks : 1,
 					UserHacks_AlignSpriteX : 1,
@@ -501,12 +508,8 @@ struct Pcsx2Config
 		// style. Useful for debugging potential bugs in the MTGS pipeline.
 		bool SynchronousMTGS{false};
 		bool FrameLimitEnable{true};
-		bool FrameSkipEnable{false};
 
-		VsyncMode VsyncEnable{VsyncMode::Off};
-
-		int FramesToDraw{2}; // number of consecutive frames (fields) to render
-		int FramesToSkip{2}; // number of consecutive frames (fields) to skip
+		VsyncMode VsyncEnable{VsyncMode::On};
 
 		double LimitScalar{1.0};
 		double FramerateNTSC{59.94};
@@ -518,8 +521,12 @@ struct Pcsx2Config
 
 		double Zoom{100.0};
 		double StretchY{100.0};
+#ifndef PCSX2_CORE
 		double OffsetX{0.0};
 		double OffsetY{0.0};
+#else
+		int Crop[4]{};
+#endif
 
 		double OsdScale{100.0};
 
@@ -532,6 +539,7 @@ struct Pcsx2Config
 		BiFiltering TextureFiltering{BiFiltering::PS2};
 		TexturePreloadingLevel TexturePreloading{TexturePreloadingLevel::Off};
 		GSDumpCompressionMethod GSDumpCompression{GSDumpCompressionMethod::Uncompressed};
+		GSHardwareDownloadMode HWDownloadMode{GSHardwareDownloadMode::Enabled};
 		int Dithering{2};
 		int MaxAnisotropy{0};
 		int SWExtraThreads{2};
@@ -545,6 +553,7 @@ struct Pcsx2Config
 		int UserHacks_RoundSprite{0};
 		int UserHacks_TCOffsetX{0};
 		int UserHacks_TCOffsetY{0};
+		int UserHacks_CPUSpriteRenderBW{0};
 		TriFiltering UserHacks_TriFilter{TriFiltering::Automatic};
 		int OverrideTextureBarriers{-1};
 		int OverrideGeometryShaders{-1};
@@ -888,9 +897,6 @@ struct Pcsx2Config
 	// ------------------------------------------------------------------------
 	struct FramerateOptions
 	{
-		bool SkipOnLimit{false};
-		bool SkipOnTurbo{false};
-
 		double NominalScalar{1.0};
 		double TurboScalar{2.0};
 		double SlomoScalar{0.5};
@@ -900,7 +906,7 @@ struct Pcsx2Config
 
 		bool operator==(const FramerateOptions& right) const
 		{
-			return OpEqu(SkipOnLimit) && OpEqu(SkipOnTurbo) && OpEqu(NominalScalar) && OpEqu(TurboScalar) && OpEqu(SlomoScalar);
+			return OpEqu(NominalScalar) && OpEqu(TurboScalar) && OpEqu(SlomoScalar);
 		}
 
 		bool operator!=(const FramerateOptions& right) const
@@ -1086,7 +1092,6 @@ namespace EmuFolders
 #define CHECK_VU_EXTRA_OVERFLOW (EmuConfig.Cpu.Recompiler.vuExtraOverflow) // If enabled, Operands are clamped before being used in the VU recs
 #define CHECK_VU_SIGN_OVERFLOW (EmuConfig.Cpu.Recompiler.vuSignOverflow)
 #define CHECK_VU_UNDERFLOW (EmuConfig.Cpu.Recompiler.vuUnderflow)
-#define CHECK_VU_EXTRA_FLAGS 0 // Always disabled now // Sets correct flags in the sVU recs
 
 #define CHECK_FPU_OVERFLOW (EmuConfig.Cpu.Recompiler.fpuOverflow)
 #define CHECK_FPU_EXTRA_OVERFLOW (EmuConfig.Cpu.Recompiler.fpuExtraOverflow) // If enabled, Operands are checked for infinities before being used in the FPU recs

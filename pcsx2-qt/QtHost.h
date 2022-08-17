@@ -29,22 +29,19 @@ class SettingsInterface;
 
 class EmuThread;
 
+enum class CDVD_SourceType : uint8_t;
+
 Q_DECLARE_METATYPE(std::shared_ptr<VMBootParameters>);
 Q_DECLARE_METATYPE(std::optional<bool>);
 Q_DECLARE_METATYPE(std::function<void()>);
 Q_DECLARE_METATYPE(GSRendererType);
 Q_DECLARE_METATYPE(InputBindingKey);
+Q_DECLARE_METATYPE(CDVD_SourceType);
 
 namespace QtHost
 {
 	bool Initialize();
 	void Shutdown();
-
-	void UpdateFolders();
-	void UpdateLogging();
-
-	/// Initializes early console logging (for printing command line arguments).
-	void InitializeEarlyConsole();
 
 	/// Sets batch mode (exit after game shutdown).
 	bool InBatchMode();
@@ -59,6 +56,9 @@ namespace QtHost
 	/// Returns the debug/devel config indicator.
 	QString GetAppConfigSuffix();
 
+	/// Returns the base path for resources. This may be : prefixed, if we're using embedded resources.
+	QString GetResourcesBasePath();
+
 	/// Thread-safe settings access.
 	void SetBaseBoolSettingValue(const char* section, const char* key, bool value);
 	void SetBaseIntSettingValue(const char* section, const char* key, int value);
@@ -69,4 +69,8 @@ namespace QtHost
 	bool RemoveBaseValueFromStringList(const char* section, const char* key, const char* value);
 	void RemoveBaseSettingValue(const char* section, const char* key);
 	void QueueSettingsSave();
+
+	/// VM state, safe to access on UI thread.
+	bool IsVMValid();
+	bool IsVMPaused();
 } // namespace QtHost

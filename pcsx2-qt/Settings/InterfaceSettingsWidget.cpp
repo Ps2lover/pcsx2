@@ -21,17 +21,27 @@
 #include "SettingWidgetBinder.h"
 #include "SettingsDialog.h"
 
-static const char* THEME_NAMES[] = {QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Native [Light]"),
+static const char* THEME_NAMES[] = {
+	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Native"),
 	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Fusion [Light]"),
 	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Dark Fusion (Gray) [Dark]"),
 	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Dark Fusion (Blue) [Dark]"),
 	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Untouched Lagoon (Grayish Green/-Blue ) [Light]"),
 	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Baby Pastel (Pink) [Light]"),
 	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "PCSX2 (White/Blue) [Light]"),
-	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Scarlet Devil (Red/Purple) [Dark]"), nullptr};
+	QT_TRANSLATE_NOOP("InterfaceSettingsWidget", "Scarlet Devil (Red/Purple) [Dark]"),
+	nullptr};
 
-static const char* THEME_VALUES[] = {"", "fusion", "darkfusion", "darkfusionblue", 
-	"UntouchedLagoon", "BabyPastel", "PCSX2Blue", "ScarletDevilRed", nullptr};
+static const char* THEME_VALUES[] = {
+	"",
+	"fusion",
+	"darkfusion",
+	"darkfusionblue",
+	"UntouchedLagoon",
+	"BabyPastel",
+	"PCSX2Blue",
+	"ScarletDevilRed",
+	nullptr};
 
 InterfaceSettingsWidget::InterfaceSettingsWidget(SettingsDialog* dialog, QWidget* parent)
 	: QWidget(parent)
@@ -50,7 +60,10 @@ InterfaceSettingsWidget::InterfaceSettingsWidget(SettingsDialog* dialog, QWidget
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.doubleClickTogglesFullscreen, "UI", "DoubleClickTogglesFullscreen",
 		true);
 	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.hideMouseCursor, "UI", "HideMouseCursor", false);
-	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.renderToMainWindow, "UI", "RenderToMainWindow", true);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.renderToSeparateWindow, "UI", "RenderToSeparateWindow", false);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.hideMainWindow, "UI", "HideMainWindowWhenRunning", false);
+	SettingWidgetBinder::BindWidgetToBoolSetting(sif, m_ui.disableWindowResizing, "UI", "DisableWindowResize", false);
+	connect(m_ui.renderToSeparateWindow, &QCheckBox::stateChanged, this, &InterfaceSettingsWidget::onRenderToSeparateWindowChanged);
 
 	SettingWidgetBinder::BindWidgetToEnumSetting(sif, m_ui.theme, "UI", "Theme", THEME_NAMES, THEME_VALUES,
 		MainWindow::DEFAULT_THEME_NAME);
@@ -97,16 +110,21 @@ InterfaceSettingsWidget::InterfaceSettingsWidget(SettingsDialog* dialog, QWidget
 	dialog->registerWidgetHelp(m_ui.hideMouseCursor, tr("Hide Cursor In Fullscreen"), tr("Checked"),
 		tr("Hides the mouse pointer/cursor when the emulator is in fullscreen mode."));
 	dialog->registerWidgetHelp(
-		m_ui.renderToMainWindow, tr("Render To Main Window"), tr("Checked"),
-		tr("Renders the display of the simulated console to the main window of the application, over "
-		   "the game list. If unchecked, the display will render in a separate window."));
-	
+		m_ui.renderToSeparateWindow, tr("Render To Separate Window"), tr("Unchecked"),
+		tr("Renders the game to a separate window, instead of the main window. If unchecked, the game will display over the top of the game list."));
+	dialog->registerWidgetHelp(
+		m_ui.hideMainWindow, tr("Hide Main Window When Running"), tr("Unchecked"),
+		tr("Hides the main window (with the game list) when a game is running, requires Render To Separate Window to be enabled."));
+
 	// Not yet used, disable the options
-	m_ui.pauseOnStart->setDisabled(true);
-	m_ui.pauseOnFocusLoss->setDisabled(true);
-	m_ui.disableWindowResizing->setDisabled(true);
-	m_ui.hideMouseCursor->setDisabled(true);
 	m_ui.language->setDisabled(true);
+
+	onRenderToSeparateWindowChanged();
 }
 
 InterfaceSettingsWidget::~InterfaceSettingsWidget() = default;
+
+void InterfaceSettingsWidget::onRenderToSeparateWindowChanged()
+{
+	m_ui.hideMainWindow->setEnabled(m_ui.renderToSeparateWindow->isChecked());
+}

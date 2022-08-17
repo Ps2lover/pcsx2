@@ -18,6 +18,7 @@
 #include "WaylandNoGUIPlatform.h"
 #include "NoGUIHost.h"
 
+#include "common/Assertions.h"
 #include "common/StringUtil.h"
 #include "common/Threading.h"
 
@@ -25,6 +26,7 @@
 
 #include <linux/input-event-codes.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 WaylandNoGUIPlatform::WaylandNoGUIPlatform()
 {

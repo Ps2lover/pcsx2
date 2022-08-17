@@ -387,8 +387,6 @@ void vtlb_dynarec_init()
 							static_cast<u8*>(GetVmMemory().MainMemory()->GetBase())),
 		m_IndirectDispatchers + INDIRECT_DISPATCHERS_SIZE);
 #endif
-
-	Perf::any.map((uptr)m_IndirectDispatchers, INDIRECT_DISPATCHERS_SIZE, "TLB Dispatcher");
 }
 
 static void vtlb_SetWriteback(u32* writeback)

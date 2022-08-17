@@ -37,6 +37,7 @@
 #if defined(_WIN32)
 #include "RedtapeWindows.h"
 #include <winioctl.h>
+#include <share.h>
 #include <shlobj.h>
 
 #if defined(_UWP)
@@ -87,7 +88,7 @@ static inline bool FileSystemCharacterIsSane(char c, bool StripSlashes)
 	return true;
 }
 
-template<typename T>
+template <typename T>
 static inline void PathAppendString(std::string& dst, const T& src)
 {
 	if (dst.capacity() < (dst.length() + src.length()))
@@ -96,7 +97,7 @@ static inline void PathAppendString(std::string& dst, const T& src)
 	bool last_separator = (!dst.empty() && dst.back() == FS_OSPATH_SEPARATOR_CHARACTER);
 
 	size_t index = 0;
-	
+
 #ifdef _WIN32
 	// special case for UNC paths here
 	if (dst.empty() && src.length() >= 3 && src[0] == '\\' && src[1] == '\\' && src[2] != '\\')
@@ -169,7 +170,8 @@ bool Path::IsAbsolute(const std::string_view& path)
 {
 #ifdef _WIN32
 	return (path.length() >= 3 && ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) &&
-			path[1] == ':' && (path[2] == '/' || path[2] == '\\')) || (path.length() >= 3 && path[0] == '\\' && path[1] == '\\');
+			   path[1] == ':' && (path[2] == '/' || path[2] == '\\')) ||
+		   (path.length() >= 3 && path[0] == '\\' && path[1] == '\\');
 #else
 	return (path.length() >= 1 && path[0] == '/');
 #endif
@@ -179,7 +181,7 @@ std::string Path::ToNativePath(const std::string_view& path)
 {
 	std::string ret;
 	PathAppendString(ret, path);
-	
+
 	// remove trailing slashes
 	if (ret.length() > 1)
 	{
@@ -445,6 +447,11 @@ std::vector<std::string_view> Path::SplitWindowsPath(const std::string_view& pat
 
 	std::string::size_type start = 0;
 	std::string::size_type pos = 0;
+
+	// preserve unc paths
+	if (path.size() > 2 && path[0] == '\\' && path[1] == '\\')
+		pos = 2;
+
 	while (pos < path.size())
 	{
 		if (path[pos] != '/' && path[pos] != '\\')
@@ -590,11 +597,28 @@ std::string Path::Combine(const std::string_view& base, const std::string_view& 
 }
 
 #ifdef _UWP
-static std::FILE* OpenCFileUWP(const wchar_t* wfilename, const wchar_t* mode)
+static std::FILE* OpenCFileUWP(const wchar_t* wfilename, const wchar_t* mode, FileSystem::FileShareMode share_mode)
 {
 	DWORD access = 0;
 	DWORD share = 0;
 	DWORD disposition = 0;
+
+	switch (share_mode)
+	{
+		case FileSystem::FileShareMode::DenyNone:
+			share = FILE_SHARE_READ | FILE_SHARE_WRITE;
+			break;
+		case FileSystem::FileShareMode::DenyRead:
+			share = FILE_SHARE_WRITE;
+			break;
+		case FileSystem::FileShareMode::DenyWrite:
+			share = FILE_SHARE_READ;
+			break;
+		case FileSystem::FileShareMode::DenyReadWrite:
+		default:
+			share = 0;
+			break;
+	}
 
 	int flags = 0;
 	const wchar_t* tmode = mode;
@@ -603,7 +627,6 @@ static std::FILE* OpenCFileUWP(const wchar_t* wfilename, const wchar_t* mode)
 		if (*tmode == L'r' && *(tmode + 1) == L'+')
 		{
 			access = GENERIC_READ | GENERIC_WRITE;
-			share = 0;
 			disposition = OPEN_EXISTING;
 			flags |= _O_RDWR;
 			tmode += 2;
@@ -611,7 +634,6 @@ static std::FILE* OpenCFileUWP(const wchar_t* wfilename, const wchar_t* mode)
 		else if (*tmode == L'w' && *(tmode + 1) == L'+')
 		{
 			access = GENERIC_READ | GENERIC_WRITE;
-			share = 0;
 			disposition = CREATE_ALWAYS;
 			flags |= _O_RDWR | _O_CREAT | _O_TRUNC;
 			tmode += 2;
@@ -619,7 +641,6 @@ static std::FILE* OpenCFileUWP(const wchar_t* wfilename, const wchar_t* mode)
 		else if (*tmode == L'a' && *(tmode + 1) == L'+')
 		{
 			access = GENERIC_READ | GENERIC_WRITE;
-			share = 0;
 			disposition = CREATE_ALWAYS;
 			flags |= _O_RDWR | _O_APPEND | _O_CREAT | _O_TRUNC;
 			tmode += 2;
@@ -627,7 +648,6 @@ static std::FILE* OpenCFileUWP(const wchar_t* wfilename, const wchar_t* mode)
 		else if (*tmode == L'r')
 		{
 			access = GENERIC_READ;
-			share = 0;
 			disposition = OPEN_EXISTING;
 			flags |= _O_RDONLY;
 			tmode++;
@@ -635,7 +655,6 @@ static std::FILE* OpenCFileUWP(const wchar_t* wfilename, const wchar_t* mode)
 		else if (*tmode == L'w')
 		{
 			access = GENERIC_WRITE;
-			share = 0;
 			disposition = CREATE_ALWAYS;
 			flags |= _O_WRONLY | _O_CREAT | _O_TRUNC;
 			tmode++;
@@ -643,7 +662,6 @@ static std::FILE* OpenCFileUWP(const wchar_t* wfilename, const wchar_t* mode)
 		else if (*tmode == L'a')
 		{
 			access = GENERIC_READ | GENERIC_WRITE;
-			share = 0;
 			disposition = CREATE_ALWAYS;
 			flags |= _O_WRONLY | _O_APPEND | _O_CREAT | _O_TRUNC;
 			tmode++;
@@ -710,7 +728,7 @@ std::FILE* FileSystem::OpenCFile(const char* filename, const char* mode)
 		if (_wfopen_s(&fp, wfilename.c_str(), wmode.c_str()) != 0)
 		{
 #ifdef _UWP
-			return OpenCFileUWP(wfilename.c_str(), wmode.c_str());
+			return OpenCFileUWP(wfilename.c_str(), wmode.c_str(), FileShareMode::DenyReadWrite);
 #else
 			return nullptr;
 #endif
@@ -748,6 +766,51 @@ int FileSystem::OpenFDFile(const char* filename, int flags, int mode)
 FileSystem::ManagedCFilePtr FileSystem::OpenManagedCFile(const char* filename, const char* mode)
 {
 	return ManagedCFilePtr(OpenCFile(filename, mode), [](std::FILE* fp) { std::fclose(fp); });
+}
+
+std::FILE* FileSystem::OpenSharedCFile(const char* filename, const char* mode, FileShareMode share_mode)
+{
+#ifdef _WIN32
+	const std::wstring wfilename(StringUtil::UTF8StringToWideString(filename));
+	const std::wstring wmode(StringUtil::UTF8StringToWideString(mode));
+	if (wfilename.empty() || wmode.empty())
+		return nullptr;
+
+	int share_flags = 0;
+	switch (share_mode)
+	{
+		case FileShareMode::DenyNone:
+			share_flags = _SH_DENYNO;
+			break;
+		case FileShareMode::DenyRead:
+			share_flags = _SH_DENYRD;
+			break;
+		case FileShareMode::DenyWrite:
+			share_flags = _SH_DENYWR;
+			break;
+		case FileShareMode::DenyReadWrite:
+		default:
+			share_flags = _SH_DENYRW;
+			break;
+	}
+
+	std::FILE* fp = _wfsopen(wfilename.c_str(), wmode.c_str(), share_flags);
+	if (fp)
+		return fp;
+
+#ifdef _UWP
+	return OpenCFileUWP(wfilename.c_str(), wmode.c_str(), share_mode);
+#else
+	return nullptr;
+#endif
+#else
+	return std::fopen(filename, mode);
+#endif
+}
+
+FileSystem::ManagedCFilePtr FileSystem::OpenManagedSharedCFile(const char* filename, const char* mode, FileShareMode share_mode)
+{
+	return ManagedCFilePtr(OpenSharedCFile(filename, mode, share_mode), [](std::FILE* fp) { std::fclose(fp); });
 }
 
 int FileSystem::FSeek64(std::FILE* fp, s64 offset, int whence)

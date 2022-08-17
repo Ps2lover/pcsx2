@@ -27,6 +27,7 @@
 #include "common/StringUtil.h"
 
 #include "pcsx2/CDVD/CDVD.h"
+#include "pcsx2/Counters.h"
 #include "pcsx2/Frontend/InputManager.h"
 #include "pcsx2/Frontend/ImGuiManager.h"
 #include "pcsx2/Frontend/FullscreenUI.h"
@@ -111,7 +112,37 @@ void EmuThread::startFullscreenUI()
 	m_run_fullscreen_ui = true;
 
 	if (!GetMTGS().WaitForOpen())
+	{
 		m_run_fullscreen_ui = false;
+		return;
+	}
+
+	// poll more frequently so we don't lose events
+	stopBackgroundControllerPollTimer();
+	startBackgroundControllerPollTimer();
+}
+
+void EmuThread::stopFullscreenUI()
+{
+	if (!isOnEmuThread())
+	{
+		QMetaObject::invokeMethod(this, &EmuThread::stopFullscreenUI, Qt::QueuedConnection);
+
+		// wait until the host display is gone
+		while (s_host_display)
+			QApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 1);
+
+		return;
+	}
+
+	if (VMManager::HasValidVM())
+		destroyVM();
+
+	if (!s_host_display)
+		return;
+
+	m_run_fullscreen_ui = false;
+	GetMTGS().WaitForClose();
 }
 
 void EmuThread::startVM(std::shared_ptr<VMBootParameters> boot_params)
@@ -135,7 +166,18 @@ void EmuThread::startVM(std::shared_ptr<VMBootParameters> boot_params)
 	if (!VMManager::Initialize(*boot_params))
 		return;
 
-	VMManager::SetState(VMState::Running);
+	if (!Host::GetBoolSettingValue("UI", "StartPaused", false))
+	{
+		// This will come back and call OnVMResumed().
+		VMManager::SetState(VMState::Running);
+	}
+	else
+	{
+		// When starting paused, redraw the window, so there's at least something there.
+		redrawDisplayWindow();
+		Host::OnVMPaused();
+	}
+
 	m_event_loop->quit();
 }
 
@@ -257,6 +299,7 @@ void EmuThread::run()
 	reloadInputSources();
 	createBackgroundControllerPollTimer();
 	startBackgroundControllerPollTimer();
+	connectSignals();
 
 	while (!m_shutdown_flag.load())
 	{
@@ -268,9 +311,6 @@ void EmuThread::run()
 
 		executeVM();
 	}
-
-	if (m_run_fullscreen_ui && s_host_display)
-		releaseHostDisplay();
 
 	stopBackgroundControllerPollTimer();
 	destroyBackgroundControllerPollTimer();
@@ -290,6 +330,7 @@ void EmuThread::destroyVM()
 	m_last_video_fps = 0.0f;
 	m_last_internal_width = 0;
 	m_last_internal_height = 0;
+	m_was_paused_by_focus_loss = false;
 	VMManager::Shutdown(m_save_state_on_shutdown);
 }
 
@@ -343,7 +384,9 @@ void EmuThread::startBackgroundControllerPollTimer()
 	if (m_background_controller_polling_timer->isActive())
 		return;
 
-	m_background_controller_polling_timer->start(BACKGROUND_CONTROLLER_POLLING_INTERVAL);
+	m_background_controller_polling_timer->start(FullscreenUI::IsInitialized() ?
+													 FULLSCREEN_UI_CONTROLLER_POLLING_INTERVAL :
+                                                     BACKGROUND_CONTROLLER_POLLING_INTERVAL);
 }
 
 void EmuThread::stopBackgroundControllerPollTimer()
@@ -378,13 +421,16 @@ void EmuThread::setFullscreen(bool fullscreen)
 		return;
 	}
 
-	if (!VMManager::HasValidVM() || m_is_fullscreen == fullscreen)
+	if (!GetMTGS().IsOpen() || m_is_fullscreen == fullscreen)
 		return;
 
 	// This will call back to us on the MTGS thread.
 	m_is_fullscreen = fullscreen;
 	GetMTGS().UpdateDisplayWindow();
 	GetMTGS().WaitGS();
+
+	// If we're using exclusive fullscreen, the refresh rate may have changed.
+	UpdateVSyncRate();
 }
 
 void EmuThread::setSurfaceless(bool surfaceless)
@@ -395,7 +441,7 @@ void EmuThread::setSurfaceless(bool surfaceless)
 		return;
 	}
 
-	if (!VMManager::HasValidVM() || m_is_surfaceless == surfaceless)
+	if (!GetMTGS().IsOpen() || m_is_surfaceless == surfaceless)
 		return;
 
 	// This will call back to us on the MTGS thread.
@@ -432,24 +478,43 @@ void EmuThread::reloadGameSettings()
 	}
 }
 
+void EmuThread::updateEmuFolders()
+{
+	if (!isOnEmuThread())
+	{
+		QMetaObject::invokeMethod(this, &EmuThread::updateEmuFolders, Qt::QueuedConnection);
+		return;
+	}
+
+	Host::Internal::UpdateEmuFolders();
+}
+
 void EmuThread::loadOurSettings()
 {
 	m_verbose_status = Host::GetBaseBoolSettingValue("UI", "VerboseStatusBar", false);
+	m_pause_on_focus_loss = Host::GetBaseBoolSettingValue("UI", "PauseOnFocusLoss", false);
+}
+
+void EmuThread::connectSignals()
+{
+	connect(qApp, &QGuiApplication::applicationStateChanged, this, &EmuThread::onApplicationStateChanged);
 }
 
 void EmuThread::loadOurInitialSettings()
 {
 	m_is_fullscreen = Host::GetBaseBoolSettingValue("UI", "StartFullscreen", false);
-	m_is_rendering_to_main = Host::GetBaseBoolSettingValue("UI", "RenderToMainWindow", true);
+	m_is_rendering_to_main = !Host::GetBaseBoolSettingValue("UI", "RenderToSeparateWindow", false);
 	m_is_surfaceless = false;
 	m_save_state_on_shutdown = false;
 }
 
 void EmuThread::checkForSettingChanges()
 {
+	QMetaObject::invokeMethod(g_main_window, &MainWindow::checkForSettingChanges, Qt::QueuedConnection);
+
 	if (VMManager::HasValidVM())
 	{
-		const bool render_to_main = Host::GetBaseBoolSettingValue("UI", "RenderToMainWindow", true);
+		const bool render_to_main = !Host::GetBaseBoolSettingValue("UI", "RenderToSeparateWindow", false);
 		if (!m_is_fullscreen && m_is_rendering_to_main != render_to_main)
 		{
 			m_is_rendering_to_main = render_to_main;
@@ -494,18 +559,18 @@ void EmuThread::switchRenderer(GSRendererType renderer)
 	GetMTGS().SwitchRenderer(renderer);
 }
 
-void EmuThread::changeDisc(const QString& path)
+void EmuThread::changeDisc(CDVD_SourceType source, const QString& path)
 {
 	if (!isOnEmuThread())
 	{
-		QMetaObject::invokeMethod(this, "changeDisc", Qt::QueuedConnection, Q_ARG(const QString&, path));
+		QMetaObject::invokeMethod(this, "changeDisc", Qt::QueuedConnection, Q_ARG(CDVD_SourceType, source), Q_ARG(const QString&, path));
 		return;
 	}
 
 	if (!VMManager::HasValidVM())
 		return;
 
-	VMManager::ChangeDisc(path.toStdString());
+	VMManager::ChangeDisc(source, path.toStdString());
 }
 
 void EmuThread::reloadPatches()
@@ -530,13 +595,14 @@ void EmuThread::reloadInputSources()
 		return;
 	}
 
-	auto lock = Host::GetSettingsLock();
+	std::unique_lock<std::mutex> lock = Host::GetSettingsLock();
 	SettingsInterface* si = Host::GetSettingsInterface();
-	InputManager::ReloadSources(*si);
+	SettingsInterface* bindings_si = Host::GetSettingsInterfaceForBindings();
+	InputManager::ReloadSources(*si, lock);
 
 	// skip loading bindings if we're not running, since it'll get done on startup anyway
 	if (VMManager::HasValidVM())
-		InputManager::ReloadBindings(*si);
+		InputManager::ReloadBindings(*si, *bindings_si);
 }
 
 void EmuThread::reloadInputBindings()
@@ -553,7 +619,8 @@ void EmuThread::reloadInputBindings()
 
 	auto lock = Host::GetSettingsLock();
 	SettingsInterface* si = Host::GetSettingsInterface();
-	InputManager::ReloadBindings(*si);
+	SettingsInterface* bindings_si = Host::GetSettingsInterfaceForBindings();
+	InputManager::ReloadBindings(*si, *bindings_si);
 }
 
 void EmuThread::requestDisplaySize(float scale)
@@ -608,53 +675,58 @@ void EmuThread::connectDisplaySignals(DisplayWidget* widget)
 {
 	widget->disconnect(this);
 
-	connect(widget, &DisplayWidget::windowFocusEvent, this, &EmuThread::onDisplayWindowFocused);
 	connect(widget, &DisplayWidget::windowResizedEvent, this, &EmuThread::onDisplayWindowResized);
-	// connect(widget, &DisplayWidget::windowRestoredEvent, this, &EmuThread::redrawDisplayWindow);
-	connect(widget, &DisplayWidget::windowKeyEvent, this, &EmuThread::onDisplayWindowKeyEvent);
-	connect(widget, &DisplayWidget::windowMouseMoveEvent, this, &EmuThread::onDisplayWindowMouseMoveEvent);
-	connect(widget, &DisplayWidget::windowMouseButtonEvent, this, &EmuThread::onDisplayWindowMouseButtonEvent);
-	connect(widget, &DisplayWidget::windowMouseWheelEvent, this, &EmuThread::onDisplayWindowMouseWheelEvent);
-}
-
-void EmuThread::onDisplayWindowMouseMoveEvent(int x, int y)
-{
-	ImGuiManager::ProcessHostMouseMoveEvent(x, y);
-}
-
-void EmuThread::onDisplayWindowMouseButtonEvent(int button, bool pressed)
-{
-	const InputBindingKey bkey(InputManager::MakeHostMouseButtonKey(button));
-	const float value = pressed ? 1.0f : 0.0f;
-
-	if (ImGuiManager::ProcessHostMouseButtonEvent(bkey, value))
-		return;
-
-	InputManager::InvokeEvents(bkey, value);
-}
-
-void EmuThread::onDisplayWindowMouseWheelEvent(const QPoint& delta_angle) {}
-
-void EmuThread::onDisplayWindowKeyEvent(int key, bool pressed)
-{
-	const InputBindingKey bkey(InputManager::MakeHostKeyboardKey(key));
-	const float value = pressed ? 1.0f : 0.0f;
-
-	if (ImGuiManager::ProcessHostKeyEvent(bkey, value))
-		return;
-
-	InputManager::InvokeEvents(bkey, value);
+	connect(widget, &DisplayWidget::windowRestoredEvent, this, &EmuThread::redrawDisplayWindow);
 }
 
 void EmuThread::onDisplayWindowResized(int width, int height, float scale)
 {
-	if (!VMManager::HasValidVM())
+	if (!s_host_display)
 		return;
 
 	GetMTGS().ResizeDisplayWindow(width, height, scale);
 }
 
-void EmuThread::onDisplayWindowFocused() {}
+void EmuThread::onApplicationStateChanged(Qt::ApplicationState state)
+{
+	// NOTE: This is executed on the emu thread, not UI thread.
+	if (!m_pause_on_focus_loss || !VMManager::HasValidVM())
+		return;
+
+	const bool focus_loss = (state != Qt::ApplicationActive);
+	if (focus_loss)
+	{
+		if (!m_was_paused_by_focus_loss && VMManager::GetState() == VMState::Running)
+		{
+			m_was_paused_by_focus_loss = true;
+			VMManager::SetPaused(true);
+		}
+	}
+	else
+	{
+		if (m_was_paused_by_focus_loss)
+		{
+			m_was_paused_by_focus_loss = false;
+			if (VMManager::GetState() == VMState::Paused)
+				VMManager::SetPaused(false);
+		}
+	}
+}
+
+void EmuThread::redrawDisplayWindow()
+{
+	if (!isOnEmuThread())
+	{
+		QMetaObject::invokeMethod(this, &EmuThread::redrawDisplayWindow, Qt::QueuedConnection);
+		return;
+	}
+
+	// If we're running, we're going to re-present anyway.
+	if (!VMManager::HasValidVM() || VMManager::GetState() == VMState::Running)
+		return;
+
+	GetMTGS().RunOnGSThread([]() { GetMTGS().PresentCurrentFrame(); });
+}
 
 void EmuThread::runOnCPUThread(const std::function<void()>& func)
 {
@@ -724,9 +796,6 @@ HostDisplay* EmuThread::acquireHostDisplay(HostDisplay::RenderAPI api)
 		return nullptr;
 	}
 
-	s_host_display->SetVSync(EmuConfig.GetEffectiveVsyncMode());
-	s_host_display->SetGPUTimingEnabled(EmuConfig.GS.OsdShowGPU);
-
 	Console.WriteLn(Color_StrongGreen, "%s Graphics Driver Info:", HostDisplay::RenderAPIToString(s_host_display->GetRenderAPI()));
 	Console.Indent().WriteLn(s_host_display->GetDriverInfo());
 
@@ -745,15 +814,8 @@ void EmuThread::releaseHostDisplay()
 {
 	ImGuiManager::Shutdown();
 
-	if (s_host_display)
-	{
-		s_host_display->DestroyRenderSurface();
-		s_host_display->DestroyRenderDevice();
-	}
-
-	emit onDestroyDisplayRequested();
-
 	s_host_display.reset();
+	emit onDestroyDisplayRequested();
 }
 
 HostDisplay* Host::GetHostDisplay()
@@ -1018,7 +1080,7 @@ SysMtgsThread& GetMTGS()
 // ------------------------------------------------------------------------
 
 BEGIN_HOTKEY_LIST(g_host_hotkeys)
-DEFINE_HOTKEY("ShutdownVM", "System", "Shut Down Virtual Machine", [](bool pressed) {
+DEFINE_HOTKEY("ShutdownVM", "System", "Shut Down Virtual Machine", [](s32 pressed) {
 	if (!pressed)
 	{
 		// run it on the host thread, that way we get the confirm prompt (if enabled)
@@ -1026,16 +1088,16 @@ DEFINE_HOTKEY("ShutdownVM", "System", "Shut Down Virtual Machine", [](bool press
 			Q_ARG(bool, true), Q_ARG(bool, true), Q_ARG(bool, true));
 	}
 })
-DEFINE_HOTKEY("TogglePause", "System", "Toggle Pause", [](bool pressed) {
+DEFINE_HOTKEY("TogglePause", "System", "Toggle Pause", [](s32 pressed) {
 	if (!pressed)
 		g_emu_thread->setVMPaused(VMManager::GetState() != VMState::Paused);
 })
-DEFINE_HOTKEY("ToggleFullscreen", "General", "Toggle Fullscreen", [](bool pressed) {
+DEFINE_HOTKEY("ToggleFullscreen", "General", "Toggle Fullscreen", [](s32 pressed) {
 	if (!pressed)
 		g_emu_thread->toggleFullscreen();
 })
 // Input Recording Hot Keys
-DEFINE_HOTKEY("InputRecToggleMode", "Input Recording", "Toggle Recording Mode", [](bool pressed) {
+DEFINE_HOTKEY("InputRecToggleMode", "Input Recording", "Toggle Recording Mode", [](s32 pressed) {
 	if (!pressed) // ?? - not pressed so it is on key up?
 	{
 		g_InputRecordingControls.RecordModeToggle();

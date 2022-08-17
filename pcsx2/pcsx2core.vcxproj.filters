@@ -605,7 +605,7 @@
     <ClCompile Include="CDVD\CDVD.cpp">
       <Filter>System\Ps2\Iop\CDVD</Filter>
     </ClCompile>
-    <ClCompile Include="CDVD\CDVDaccess.cpp">
+    <ClCompile Include="CDVD\CDVDcommon.cpp">
       <Filter>System\Ps2\Iop\CDVD</Filter>
     </ClCompile>
     <ClCompile Include="CDVD\CDVDisoReader.cpp">
@@ -844,6 +844,9 @@
     </ClCompile>
     <ClCompile Include="SPU2\Wavedump_wav.cpp">
       <Filter>System\Ps2\SPU2</Filter>
+    </ClCompile>
+    <ClCompile Include="DEV9\AdapterUtils.cpp">
+      <Filter>System\Ps2\DEV9</Filter>
     </ClCompile>
     <ClCompile Include="DEV9\ATA\Commands\ATA_Command.cpp">
       <Filter>System\Ps2\DEV9\ATA\Commands</Filter>
@@ -1269,8 +1272,18 @@
     <ClCompile Include="Recording\PadData.cpp">
       <Filter>Tools\Input Recording</Filter>
     </ClCompile>
-    <ClCompile Include="Frontend\ImGuiFullscreen.cpp" />
-    <ClCompile Include="Frontend\FullscreenUI.cpp" />
+    <ClCompile Include="Frontend\LogSink.cpp">
+      <Filter>Host</Filter>
+    </ClCompile>
+    <ClCompile Include="Frontend\Win32RawInputSource.cpp">
+      <Filter>Host</Filter>
+    </ClCompile>
+    <ClCompile Include="Frontend\ImGuiFullscreen.cpp">
+      <Filter>Host</Filter>
+    </ClCompile>
+    <ClCompile Include="Frontend\FullscreenUI.cpp">
+      <Filter>Host</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Patch.h">
@@ -1480,7 +1493,7 @@
     <ClInclude Include="CDVD\CDVD_internal.h">
       <Filter>System\Ps2\Iop\CDVD</Filter>
     </ClInclude>
-    <ClInclude Include="CDVD\CDVDaccess.h">
+    <ClInclude Include="CDVD\CDVDcommon.h">
       <Filter>System\Ps2\Iop\CDVD</Filter>
     </ClInclude>
     <ClInclude Include="IPU\IPU.h">
@@ -1662,6 +1675,9 @@
     </ClInclude>
     <ClInclude Include="SPU2\spdif.h">
       <Filter>System\Ps2\SPU2</Filter>
+    </ClInclude>
+    <ClInclude Include="DEV9\AdapterUtils.h">
+      <Filter>System\Ps2\DEV9</Filter>
     </ClInclude>
     <ClInclude Include="DEV9\ATA\ATA.h">
       <Filter>System\Ps2\DEV9\ATA</Filter>
@@ -2109,8 +2125,19 @@
     <ClInclude Include="Recording\PadData.h">
       <Filter>Tools\Input Recording</Filter>
     </ClInclude>
-    <ClInclude Include="Frontend\ImGuiFullscreen.h" />
-    <ClInclude Include="Frontend\FullscreenUI.h" />
+    <ClInclude Include="Frontend\LogSink.h">
+      <Filter>Host</Filter>
+    </ClInclude>
+    <ClInclude Include="Frontend\Win32RawInputSource.h">
+      <Filter>Host</Filter>
+    </ClInclude>
+    <ClInclude Include="Frontend\ImGuiFullscreen.h">
+      <Filter>Host</Filter>
+    </ClInclude>
+    <ClInclude Include="Frontend\FullscreenUI.h">
+      <Filter>Host</Filter>
+    </ClInclude>
+    <ClInclude Include="svnrev.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuildStep Include="rdebug\deci2.h">

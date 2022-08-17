@@ -16,6 +16,7 @@
 #pragma once
 #include "common/Pcsx2Defs.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include <functional>
 #include <memory>
 #include <optional>
@@ -29,8 +30,6 @@ namespace ImGuiFullscreen
 #define HEX_TO_IMVEC4(hex, alpha) \
 	ImVec4(static_cast<float>((hex >> 16) & 0xFFu) / 255.0f, static_cast<float>((hex >> 8) & 0xFFu) / 255.0f, \
 		static_cast<float>(hex & 0xFFu) / 255.0f, static_cast<float>(alpha) / 255.0f)
-
-	using LoadTextureFunction = std::unique_ptr<HostDisplayTexture> (*)(const char* path);
 
 	static constexpr float LAYOUT_SCREEN_WIDTH = 1280.0f;
 	static constexpr float LAYOUT_SCREEN_HEIGHT = 720.0f;
@@ -49,7 +48,22 @@ namespace ImGuiFullscreen
 	extern float g_layout_scale;
 	extern float g_layout_padding_left;
 	extern float g_layout_padding_top;
-	extern float g_menu_bar_size;
+
+	extern ImVec4 UIBackgroundColor;
+	extern ImVec4 UIBackgroundTextColor;
+	extern ImVec4 UIBackgroundLineColor;
+	extern ImVec4 UIBackgroundHighlightColor;
+	extern ImVec4 UIDisabledColor;
+	extern ImVec4 UIPrimaryColor;
+	extern ImVec4 UIPrimaryLightColor;
+	extern ImVec4 UIPrimaryDarkColor;
+	extern ImVec4 UIPrimaryTextColor;
+	extern ImVec4 UITextHighlightColor;
+	extern ImVec4 UIPrimaryLineColor;
+	extern ImVec4 UISecondaryColor;
+	extern ImVec4 UISecondaryLightColor;
+	extern ImVec4 UISecondaryDarkColor;
+	extern ImVec4 UISecondaryTextColor;
 
 	static __fi float DPIScale(float v) { return ImGui::GetIO().DisplayFramebufferScale.x * v; }
 
@@ -76,45 +90,44 @@ namespace ImGuiFullscreen
 		return ImVec2(g_layout_padding_left + x * g_layout_scale, g_layout_padding_top + y * g_layout_scale);
 	}
 
-	static __fi ImVec4 UIPrimaryColor() { return HEX_TO_IMVEC4(0x212121, 0xff); }
+	static __fi ImVec4 ModAlpha(const ImVec4& v, float a)
+	{
+		return ImVec4(v.x, v.y, v.z, a);
+	}
 
-	static __fi ImVec4 UIPrimaryLightColor() { return HEX_TO_IMVEC4(0x484848, 0xff); }
-
-	static __fi ImVec4 UIPrimaryDarkColor() { return HEX_TO_IMVEC4(0x484848, 0xff); }
-
-	static __fi ImVec4 UIPrimaryTextColor() { return HEX_TO_IMVEC4(0xffffff, 0xff); }
-
-	static __fi ImVec4 UIPrimaryDisabledTextColor() { return HEX_TO_IMVEC4(0xaaaaaa, 0xff); }
-
-	static __fi ImVec4 UITextHighlightColor() { return HEX_TO_IMVEC4(0x90caf9, 0xff); }
-
-	static __fi ImVec4 UIPrimaryLineColor() { return HEX_TO_IMVEC4(0xffffff, 0xff); }
-
-	static __fi ImVec4 UISecondaryColor() { return HEX_TO_IMVEC4(0x1565c0, 0xff); }
-
-	static __fi ImVec4 UISecondaryLightColor() { return HEX_TO_IMVEC4(0x5e92f3, 0xff); }
-
-	static __fi ImVec4 UISecondaryDarkColor() { return HEX_TO_IMVEC4(0x003c8f, 0xff); }
-
-	static __fi ImVec4 UISecondaryTextColor() { return HEX_TO_IMVEC4(0xffffff, 0xff); }
+	/// Centers an image within the specified bounds, scaling up or down as needed.
+	ImRect CenterImage(const ImVec2& fit_size, const ImVec2& image_size);
+	ImRect CenterImage(const ImRect& fit_rect, const ImVec2& image_size);
 
 	/// Initializes, setting up any state.
+	bool Initialize(const char* placeholder_image_path);
+
+	void SetTheme();
 	void SetFonts(ImFont* standard_font, ImFont* medium_font, ImFont* large_font);
-	void SetLoadTextureFunction(LoadTextureFunction callback);
 	bool UpdateLayoutScale();
 
 	/// Shuts down, clearing all state.
-	void ClearState();
-
-	/// Changes the menu bar size. Don't forget to call UpdateLayoutScale() and UpdateFonts().
-	void SetMenuBarSize(float size);
+	void Shutdown();
 
 	/// Texture cache.
-	HostDisplayTexture* GetCachedTexture(const std::string& name);
+	const std::shared_ptr<HostDisplayTexture>& GetPlaceholderTexture();
+	std::shared_ptr<HostDisplayTexture> LoadTexture(const char* path);
+	HostDisplayTexture* GetCachedTexture(const char* name);
+	HostDisplayTexture* GetCachedTextureAsync(const char* name);
 	bool InvalidateCachedTexture(const std::string& path);
+	void UploadAsyncTextures();
 
 	void BeginLayout();
 	void EndLayout();
+
+	void QueueResetFocus();
+	bool ResetFocusHere();
+	bool WantsToCloseMenu();
+
+	void PushPrimaryColor();
+	void PopPrimaryColor();
+	void PushSecondaryColor();
+	void PopSecondaryColor();
 
 	bool IsCancelButtonPressed();
 
@@ -123,7 +136,7 @@ namespace ImGuiFullscreen
 	bool BeginFullscreenColumns(const char* title = nullptr);
 	void EndFullscreenColumns();
 
-	bool BeginFullscreenColumnWindow(float start, float end, const char* name, const ImVec4& background = HEX_TO_IMVEC4(0x212121, 0xFF));
+	bool BeginFullscreenColumnWindow(float start, float end, const char* name, const ImVec4& background = UIBackgroundColor);
 	void EndFullscreenColumnWindow();
 
 	bool BeginFullscreenWindow(float left, float top, float width, float height, const char* name,
@@ -215,4 +228,7 @@ namespace ImGuiFullscreen
 
 	void AddNotification(float duration, std::string title, std::string text, std::string image_path);
 	void ClearNotifications();
+
+	void ShowToast(std::string title, std::string message, float duration = 10.0f);
+	void ClearToast();
 } // namespace ImGuiFullscreen

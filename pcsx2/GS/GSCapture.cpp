@@ -603,7 +603,7 @@ bool GSCapture::EndCapture()
 		m_graph.reset();;
 	}
 
-#elif defined(__unix__) || defined(_UWP)
+##elif defined(__unix__) || defined(_UWP)
 	m_workers.clear();
 
 	m_frame = 0;

@@ -121,13 +121,9 @@ HostDisplay* Host::AcquireHostDisplay(HostDisplay::RenderAPI api)
 		!s_host_display->InitializeRenderDevice(EmuFolders::Cache, GSConfig.UseDebugDevice) ||
 		!ImGuiManager::Initialize())
 	{
-		s_host_display->DestroyRenderDevice();
 		s_host_display.reset();
 		return nullptr;
 	}
-
-	s_host_display->SetVSync(EmuConfig.GetEffectiveVsyncMode());
-	s_host_display->SetGPUTimingEnabled(EmuConfig.GS.OsdShowGPU);
 
 	Console.WriteLn(Color_StrongGreen, "%s Graphics Driver Info:", HostDisplay::RenderAPIToString(s_host_display->GetRenderAPI()));
 	Console.Indent().WriteLn(s_host_display->GetDriverInfo());
@@ -140,10 +136,7 @@ void Host::ReleaseHostDisplay()
 	ImGuiManager::Shutdown();
 
 	if (s_host_display)
-	{
-		s_host_display->DestroyRenderDevice();
 		s_host_display.reset();
-	}
 
 	sApp.CloseGsPanel();
 }
